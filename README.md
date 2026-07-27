@@ -1,1 +1,1 @@
-# SixEagle-FE
+# aura-frontend
