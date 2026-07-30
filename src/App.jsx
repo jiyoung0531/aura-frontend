@@ -248,12 +248,6 @@ export default function App() {
         </div>
       )}
 
-      {permissionError && (
-        <div className="permission-banner">
-          <div>카메라 권한이 필요합니다. 주소창의 잠금 아이콘에서 카메라를 허용한 뒤 이 페이지를 새로고침해 주세요.</div>
-          {errorDetails && <div style={{ marginTop: 8, opacity: 0.85 }}>{errorDetails}</div>}
-        </div>
-      )}
     </div>
   );
 }
