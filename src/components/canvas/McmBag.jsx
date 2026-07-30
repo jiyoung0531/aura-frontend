@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import * as THREE from 'three';
 import { useGLTF, useTexture } from '@react-three/drei';
 
-const BAG_MODEL_URL = '/models/mcm_bag.glb';
+const BAG_MODEL_URL = '/models/mcm_final_2.glb';
 const TEXTURE_URLS = {
   //무드 구분
   street: '/textures/mcm_logo2.png', 
