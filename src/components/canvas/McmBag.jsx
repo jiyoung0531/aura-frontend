@@ -5,7 +5,7 @@ import { useGLTF, useTexture } from '@react-three/drei';
 const BAG_MODEL_URL = '/models/mcm_bag.glb';
 const TEXTURE_URLS = {
   //무드 구분
-  street: '/textures/street_pattern.png', 
+  street: '/textures/mcm_logo2.png', 
   romantic: '/textures/street_pattern.png',
   classic: '/textures/street_pattern.png',
   minimal: '/textures/street_pattern.png',
@@ -30,7 +30,7 @@ export function McmBag({ currentMood = 'street' }) {
     selectedTexture.wrapT = THREE.RepeatWrapping;
 
     // 패턴크기 설정
-    selectedTexture.repeat.set(8, 8); 
+    selectedTexture.repeat.set(10, 10); 
 
     selectedTexture.colorSpace = THREE.SRGBColorSpace;
   }
