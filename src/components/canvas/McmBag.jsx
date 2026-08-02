@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import * as THREE from 'three';
 import { useGLTF, useTexture } from '@react-three/drei';
 
-const BAG_MODEL_URL = '/models/mcm_final_2.glb';
+const BAG_MODEL_URL = '/models/mcm_final_5.glb';
 const TEXTURE_URLS = {
   //무드 구분
   street: '/textures/mcm_logo2.png', 
@@ -10,7 +10,8 @@ const TEXTURE_URLS = {
   classic: '/textures/street_pattern.png',
   minimal: '/textures/street_pattern.png',
   // 로고 이미지
-  logo: '/textures/street_pattern.png', 
+  logo_g: '/textures/logo_g.png', 
+  logo_r: '/textures/logo_r.png',
 };
 
 export function McmBag({ currentMood = 'street' }) {
@@ -36,13 +37,17 @@ export function McmBag({ currentMood = 'street' }) {
   }
 
   // 로고용 텍스처 설정 
-  const logoTexture = textures.logo;
+  /*const logoKey = currentMood === 'romantic' ? 'logo_r' : 'logo_g'; 
+  const logoTexture = textures[logoKey];
+  
   if (logoTexture) {
     logoTexture.flipY = false; 
 
     logoTexture.wrapS = THREE.ClampToEdgeWrapping;
     logoTexture.wrapT = THREE.ClampToEdgeWrapping;
-  }
+
+    logoTexture.colorSpace = THREE.SRGBColorSpace;
+  }*/
 
   //  텍스처 모델에 덮어씌우기
   useEffect(() => {
@@ -66,11 +71,12 @@ export function McmBag({ currentMood = 'street' }) {
         }
 
         // 로고 적용
-        if (child.name === 'logo_plate_mesh') {
+     /*   if (child.name === 'logo_plate_mesh') {
           child.material.map = logoTexture;
           child.material.color.set('white');
           child.material.needsUpdate = true;
-        }
+          child.material.transparent = true;
+        }*/
       }
     });
   }, [scene, textures, currentMood]);
