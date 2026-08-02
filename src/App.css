@@ -12,7 +12,9 @@
   width: 100%;
   height: 100%;
   z-index: 1;
-  transition: filter 0.4s ease, transform 0.4s ease;
+  transition:
+    filter 0.4s ease,
+    transform 0.4s ease;
 }
 
 .scene-layer.dimmed {
@@ -42,7 +44,9 @@
   opacity: 0;
   transform: translateX(24px) scale(0.96);
   pointer-events: none;
-  transition: opacity 0.45s ease, transform 0.45s ease;
+  transition:
+    opacity 0.45s ease,
+    transform 0.45s ease;
 }
 
 .camera-panel.visible {
@@ -63,6 +67,29 @@
   box-shadow: none;
   padding: 0;
   background: #000;
+}
+
+.camera-panel.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  background: transparent;
+  pointer-events: none;
+}
+
+.camera-panel.overlay .camera-layer {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.camera-panel.overlay .tracking-canvas {
+  z-index: 2;
 }
 
 .camera-layer,
@@ -120,4 +147,3 @@
   background: #34d399;
   box-shadow: 0 0 0 6px rgba(52, 211, 153, 0.12);
 }
-
