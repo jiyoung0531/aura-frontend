@@ -53,12 +53,14 @@ export default function App() {
   const [permissionError, setPermissionError] = useState(false);
   const [errorDetails, setErrorDetails] = useState("");
 
+  const handPosRef = useRef({ x: 0, y: 0 }); 
+  const hoveredMaterialRef = useRef(null); // 가방에서 터치된 재질 이름
+  const cursorRef = useRef({ x: null, y: null }); // 커서 속도 변조용
+
   const showBagScene = route === "/" || route === "/bag";
   const showBagOverlay = route === "/bag";
   const showCameraPage = route === "/camera";
   const showCamera = showBagOverlay || showCameraPage;
-  const showGlowOverlay = showBagOverlay;
-  const mirrorCamera = showCameraPage;
 
   useEffect(() => {
     const handlePopState = () => setRoute(window.location.pathname || "/");
@@ -127,10 +129,31 @@ export default function App() {
           const x = offsetX + (1 - rawX) * drawWidth;
           const y = offsetY + rawY * drawHeight;
 
-          if (showGlowOverlay) {
-            drawAuraCursor(context, x, y);
+          handPosRef.current = { x, y };
+
+          let speed = 1.0;
+          const currentMaterial = hoveredMaterialRef.current; 
+          
+          // 재질에 따라 커서 속도 조정
+          if (currentMaterial) {
+            if (currentMaterial.includes('bag') || currentMaterial.includes('panel')) speed = 0.38;
+            else if (currentMaterial.includes('zip') || currentMaterial.includes('buckle') || currentMaterial.includes('logo') || currentMaterial.includes('hardware')) speed = 1.2;
+            else if (currentMaterial.includes('strap') || currentMaterial.includes('handle') || currentMaterial.includes('line')) speed = 0.2;
           }
 
+          if (cursorRef.current.x === null) {
+            cursorRef.current.x = x;
+            cursorRef.current.y = y;
+          }
+
+          // 보간 적용
+          cursorRef.current.x += (x - cursorRef.current.x) * (0.2 * speed);
+          cursorRef.current.y += (y - cursorRef.current.y) * (0.2 * speed);
+
+          handPosRef.current = { x: cursorRef.current.x, y: cursorRef.current.y };
+
+          drawAuraCursor(context, cursorRef.current.x, cursorRef.current.y);
+          
           setIsTracking(true);
           return;
         }
@@ -241,11 +264,15 @@ export default function App() {
       {showBagScene && (
         <div className="scene-layer">
           <Canvas camera={{ position: [0, 0, 5], fov: 50 }}>
-            // 밝기 조절
             <ambientLight intensity={3.5} />
-            // 조명 조절
             <directionalLight position={[10, 10, 5]} intensity={3} />
-            <McmBag currentMood="street" />
+            
+            <McmBag 
+              currentMood="street" 
+              handPosRef={handPosRef} 
+              setHoveredMaterial={(name) => { hoveredMaterialRef.current = name; }} 
+            />
+            
             <OrbitControls />
           </Canvas>
         </div>
@@ -258,7 +285,6 @@ export default function App() {
         fullscreen={showCameraPage}
         hideVideo={showBagOverlay}
         overlay={showBagOverlay}
-        mirror={mirrorCamera}
       />
 
       {showCamera && (
