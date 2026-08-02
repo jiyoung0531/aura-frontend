@@ -5,8 +5,8 @@ import { useGLTF, useTexture } from '@react-three/drei';
 const BAG_MODEL_URL = '/models/mcm_final_5.glb';
 const TEXTURE_URLS = {
   //무드 구분
-  street: '/textures/mcm_logo2.png', 
-  romantic: '/textures/street_pattern.png',
+  street: '/textures/minimal_pattern.png', 
+  romantic: '/textures/romantic_pattern.png',
   classic: '/textures/street_pattern.png',
   minimal: '/textures/street_pattern.png',
   // 로고 이미지
@@ -69,6 +69,19 @@ export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0]
             child.material.needsUpdate = true;
           }
         }
+
+
+        // 스트랩 테스트
+        if (child.name === 'shoulder_strap_001_mesh' || child.name === 'shoulder_strap_002_mesh'
+            || child.name === 'strap_001_mesh' || child.name === 'strap_002_mesh'
+            || child.name === 'round_line_001_mesh' || child.name === 'round_line_002_mesh'|| child.name === 'strong_handle_mesh'
+        ) {
+          child.material = child.material.clone(); 
+          child.material.map = null; 
+          child.material.color.set('red');        
+          child.material.needsUpdate = true;
+        }
+
 
         // 로고 적용
      /*   if (child.name === 'logo_plate_mesh') {
