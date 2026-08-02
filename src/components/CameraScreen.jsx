@@ -5,10 +5,11 @@ export default function CameraScreen({
   fullscreen,
   hideVideo,
   overlay,
+  mirror,
 }) {
   return (
     <div
-      className={`camera-panel ${visible ? "visible" : ""} ${fullscreen ? "fullscreen" : ""} ${overlay ? "overlay" : ""}`}
+      className={`camera-panel ${visible ? "visible" : ""} ${fullscreen ? "fullscreen" : ""} ${overlay ? "overlay" : ""} ${mirror ? "mirrored" : ""}`}
     >
       <video
         ref={videoRef}
