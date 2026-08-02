@@ -57,6 +57,8 @@ export default function App() {
   const showBagOverlay = route === "/bag";
   const showCameraPage = route === "/camera";
   const showCamera = showBagOverlay || showCameraPage;
+  const showGlowOverlay = showBagOverlay;
+  const mirrorCamera = showCameraPage;
 
   useEffect(() => {
     const handlePopState = () => setRoute(window.location.pathname || "/");
@@ -125,7 +127,10 @@ export default function App() {
           const x = offsetX + (1 - rawX) * drawWidth;
           const y = offsetY + rawY * drawHeight;
 
-          drawAuraCursor(context, x, y);
+          if (showGlowOverlay) {
+            drawAuraCursor(context, x, y);
+          }
+
           setIsTracking(true);
           return;
         }
@@ -251,6 +256,7 @@ export default function App() {
         fullscreen={showCameraPage}
         hideVideo={showBagOverlay}
         overlay={showBagOverlay}
+        mirror={mirrorCamera}
       />
 
       {showCamera && (
