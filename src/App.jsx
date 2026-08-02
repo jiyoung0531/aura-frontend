@@ -54,7 +54,9 @@ export default function App() {
   const [errorDetails, setErrorDetails] = useState("");
 
   const showBagScene = route === "/" || route === "/bag";
-  const showCameraScreen = !showBagScene;
+  const showBagOverlay = route === "/bag";
+  const showCameraPage = route === "/camera";
+  const showCamera = showBagOverlay || showCameraPage;
 
   useEffect(() => {
     const handlePopState = () => setRoute(window.location.pathname || "/");
@@ -63,7 +65,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!showCameraScreen) {
+    if (!showCamera) {
       return undefined;
     }
 
@@ -104,7 +106,13 @@ export default function App() {
 
       const landmarks = results.landmarks?.[0];
       if (landmarks?.length) {
-        const palmPoints = [landmarks[0], landmarks[5], landmarks[9], landmarks[13], landmarks[17]];
+        const palmPoints = [
+          landmarks[0],
+          landmarks[5],
+          landmarks[9],
+          landmarks[13],
+          landmarks[17],
+        ];
         const validPalmPoints = palmPoints.filter(Boolean);
 
         if (validPalmPoints.length >= 3) {
@@ -114,7 +122,7 @@ export default function App() {
           const rawY =
             validPalmPoints.reduce((sum, point) => sum + point.y, 0) /
             validPalmPoints.length;
-          const x = offsetX + rawX * drawWidth;
+          const x = offsetX + (1 - rawX) * drawWidth;
           const y = offsetY + rawY * drawHeight;
 
           drawAuraCursor(context, x, y);
@@ -198,7 +206,9 @@ export default function App() {
         console.error("Camera error:", { name, message });
         setPermissionError(true);
         setErrorDetails(`${name}: ${message}`);
-        setStatusText("카메라 권한이 차단됐어요. 브라우저 주소창의 카메라 권한을 허용한 뒤 새로고침해 주세요.");
+        setStatusText(
+          "카메라 권한이 차단됐어요. 브라우저 주소창의 카메라 권한을 허용한 뒤 새로고침해 주세요.",
+        );
       }
     };
 
@@ -219,7 +229,7 @@ export default function App() {
         handLandmarker.close();
       }
     };
-  }, [showCameraScreen]);
+  }, [showCamera]);
 
   return (
     <div className="app-shell">
@@ -237,17 +247,18 @@ export default function App() {
       <CameraScreen
         videoRef={videoRef}
         canvasRef={canvasRef}
-        visible={showCameraScreen}
-        fullscreen={showCameraScreen}
+        visible={showCamera}
+        fullscreen={showCameraPage}
+        hideVideo={showBagOverlay}
+        overlay={showBagOverlay}
       />
 
-      {showCameraScreen && (
+      {showCamera && (
         <div className="status-pill">
           <span className={`status-dot ${isTracking ? "active" : ""}`} />
           <span>{isTracking ? "Aura Hand 추적 중" : statusText}</span>
         </div>
       )}
-
     </div>
   );
 }
