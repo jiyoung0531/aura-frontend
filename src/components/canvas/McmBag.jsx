@@ -14,7 +14,7 @@ const TEXTURE_URLS = {
   logo_r: '/textures/logo_r.png',
 };
 
-export function McmBag({ currentMood = 'street' }) {
+export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0] }) {
   // 가방 모델 불러오기
   const { scene } = useGLTF(BAG_MODEL_URL);
 
@@ -82,5 +82,5 @@ export function McmBag({ currentMood = 'street' }) {
   }, [scene, textures, currentMood]);
 
   // 15도 회전된 뷰
-  return <primitive object={scene} rotation={[0, Math.PI / 12, 0]} scale={1.5} />;
+  return <primitive object={scene} rotation={rotation} scale={1.5} />;
 }
