@@ -226,8 +226,10 @@ export default function App() {
       {showBagScene && (
         <div className="scene-layer">
           <Canvas camera={{ position: [0, 0, 5], fov: 50 }}>
-            <ambientLight intensity={1.5} />
-            <directionalLight position={[10, 10, 5]} intensity={2} />
+            // 밝기 조절
+            <ambientLight intensity={3.5} />
+            // 조명 조절
+            <directionalLight position={[10, 10, 5]} intensity={3} />
             <McmBag currentMood="street" />
             <OrbitControls />
           </Canvas>

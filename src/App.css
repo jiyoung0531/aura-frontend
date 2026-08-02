@@ -3,7 +3,9 @@
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background: linear-gradient(135deg, #020617 0%, #111827 100%);
+  /*전체 배경 색 조절*/
+ /* background: linear-gradient(135deg, #020617 0%, #111827 100%);*/
+  background: linear-gradient(135deg, #c4c8db 0%, #6c84ba 100%);
 }
 
 .scene-layer {
