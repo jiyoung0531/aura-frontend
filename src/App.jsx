@@ -53,8 +53,10 @@ export default function App() {
   const [route, setRoute] = useState(window.location.pathname || "/");
   const [permissionError, setPermissionError] = useState(false);
   const [errorDetails, setErrorDetails] = useState("");
-  const [bagYaw, setBagYaw] = useState(Math.PI / 12);
-  const [bagPitch, setBagPitch] = useState(0);
+  const initialBagYaw = Math.PI / 12;
+  const initialBagPitch = 0;
+  const [bagYaw, setBagYaw] = useState(initialBagYaw);
+  const [bagPitch, setBagPitch] = useState(initialBagPitch);
 
   const handPosRef = useRef({ x: 0, y: 0 }); 
   const hoveredMaterialRef = useRef(null); // 가방에서 터치된 재질 이름
@@ -184,11 +186,16 @@ export default function App() {
               return Math.hypot(dx, dy) < 0.18;
             });
 
-          if (showBagOverlay && isFist) {
-            const yawFromX = ((0.5 - rawX) * Math.PI * 2.2) % (Math.PI * 2);
-            const pitchFromY = ((rawY - 0.5) * Math.PI * 0.8) % (Math.PI * 2);
-            setBagYaw(yawFromX);
-            setBagPitch(pitchFromY);
+          if (showBagOverlay) {
+            if (isFist) {
+              const yawFromX = ((0.5 - rawX) * Math.PI * 2.2) % (Math.PI * 2);
+              const pitchFromY = ((rawY - 0.5) * Math.PI * 0.8) % (Math.PI * 2);
+              setBagYaw(yawFromX);
+              setBagPitch(pitchFromY);
+            } else {
+              setBagYaw((prev) => prev + (initialBagYaw - prev) * 0.12);
+              setBagPitch((prev) => prev + (initialBagPitch - prev) * 0.12);
+            }
           }
 
           if (!wasFistRef.current && isFist) {
