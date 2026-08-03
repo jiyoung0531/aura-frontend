@@ -97,6 +97,7 @@
 .camera-panel.fullscreen.mirrored .camera-layer,
 .camera-panel.fullscreen.mirrored .tracking-canvas {
   transform: scaleX(-1);
+  transform-origin: center;
 }
 
 .camera-layer,
