@@ -62,6 +62,11 @@ export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0]
         shadowMeshRef.current.visible = false; 
         shadowMeshRef.current.scale.set(1, 1, 1);
       }
+
+      Object.values(sounds.current).forEach((audio) => {
+        audio.pause();           
+        audio.currentTime = 0;   
+      });
     };
 
     if (intersects.length > 0) {
@@ -95,7 +100,7 @@ export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0]
               shadowMeshRef.current.position.copy(hit.point);
               
               if (hit.face) {
- const normal = hit.face.normal.clone();
+              const normal = hit.face.normal.clone();
                 normal.transformDirection(hit.object.matrixWorld); 
                 shadowMeshRef.current.lookAt(hit.point.clone().add(normal)); 
                 // 그림자가 가방을 파고들지 않게 표면에서 살짝 띄우기 (0.015)
@@ -108,6 +113,14 @@ export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0]
           resetVisualEffect();
           lastHoveredCategory.current = category;
           hoverTimer.current = 0;
+
+          if (sounds.current[category]) {
+            const audio = sounds.current[category];
+            audio.currentTime = 0; // 손으로 빠르게 쓱쓱 쓸어내릴 때마다 소리가 즉시 다시 나도록 처음으로 되감기!
+            audio.play().catch((error) => {
+              console.log("🔊 화면을 클릭해야 소리가 납니다!", error);
+            });
+          }         
         }
       } else {
         resetVisualEffect();
