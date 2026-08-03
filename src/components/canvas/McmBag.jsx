@@ -4,7 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGLTF, useTexture } from '@react-three/drei';
 
-const BAG_MODEL_URL = '/models/mcm_final_5.glb';
+const BAG_MODEL_URL = '/models/mcm_final_7.glb';
 const TEXTURE_URLS = {
   //무드 구분
   street: '/textures/romantic_pattern.png', 
@@ -18,19 +18,14 @@ const TEXTURE_URLS = {
 
 export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0], handPosRef, setHoveredMaterial }) {
   const { scene } = useGLTF(BAG_MODEL_URL);
-
   // 무드별 2D 텍스처 불러오기
   const textures = useTexture(TEXTURE_URLS);
-
   const { camera, raycaster, size } = useThree();
 
   const hoverTimer = useRef(0);
   const lastHoveredCategory = useRef(null); 
   const shadowMeshRef = useRef(null);
 
-  const lastHitMaterial = useRef(null);
-  const originalColor = useRef(new THREE.Color());
-  
   const sounds = useRef({
     leather: new Audio('/sounds/leather.mp3'),
     metal: new Audio('/sounds/metal.mp3'),
@@ -45,7 +40,8 @@ export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0]
     const ctx = canvas.getContext('2d');
     const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
     // 그림자 색상 설정
-    gradient.addColorStop(0, 'rgba(0, 0, 0, 0.5)'); 
+    gradient.addColorStop(0, 'rgba(0, 0, 0, 0.6)'); 
+    gradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.3)');
     gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 128, 128);
@@ -63,14 +59,14 @@ export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0]
 
     const resetVisualEffect = () => {
       if (shadowMeshRef.current) {
-        shadowMeshRef.current.visible = false;
+        shadowMeshRef.current.visible = false; 
+        shadowMeshRef.current.scale.set(1, 1, 1);
       }
     };
 
     if (intersects.length > 0) {
       const hitObject = intersects[0].object;
       const hitName = hitObject.name;
-      const hitMaterial = hitObject.material;
 
       setHoveredMaterial(hitName);
 
@@ -84,14 +80,14 @@ export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0]
         if (lastHoveredCategory.current === category) {
           hoverTimer.current += delta; 
 
-          if (hoverTimer.current >= 2.0) {
-            
+          if (hoverTimer.current >= 2.0) {   
             // ASMR 사운드 대타: 콘솔창에 한 번만 알림 띄우기
             if (hoverTimer.current < 2.05) { 
               console.log(`🔊 띠링! [${category}] ASMR 사운드 재생 완료!`);
               // 오디오 파일이 없어서 나는 에러를 막기 위해 임시 주석 처리
               // sounds.current[category]?.play().catch(() => {}); 
             }
+
             if (shadowMeshRef.current) {
               shadowMeshRef.current.visible = true; 
               
@@ -99,12 +95,13 @@ export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0]
               shadowMeshRef.current.position.copy(hit.point);
               
               if (hit.face) {
-                const normal = hit.face.normal.clone();
+ const normal = hit.face.normal.clone();
                 normal.transformDirection(hit.object.matrixWorld); 
-                
                 shadowMeshRef.current.lookAt(hit.point.clone().add(normal)); 
-                shadowMeshRef.current.position.add(normal.multiplyScalar(0.02)); 
+                // 그림자가 가방을 파고들지 않게 표면에서 살짝 띄우기 (0.015)
+                shadowMeshRef.current.position.add(normal.multiplyScalar(0.015));
               }
+              shadowMeshRef.current.scale.lerp(new THREE.Vector3(1.5, 1.5, 1.5), 0.15);
             }
           }
         } else {
@@ -128,16 +125,12 @@ export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0]
   const selectedTexture = textures[currentMood];
   if (selectedTexture) {
     selectedTexture.flipY = false; 
-    
     // 패턴을 바둑판처럼 반복
     selectedTexture.wrapS = THREE.RepeatWrapping;
     selectedTexture.wrapT = THREE.RepeatWrapping;
-
     // 패턴크기 설정
     selectedTexture.repeat.set(10, 10); 
-
     selectedTexture.colorSpace = THREE.SRGBColorSpace;
-
     selectedTexture.anisotropy = 16; // 패턴을 기울여서 볼 때 선명도 유지
     selectedTexture.generateMipmaps = false; // 이미지 축소 시 가장자리 번짐(격자) 원천 차단
     selectedTexture.minFilter = THREE.LinearFilter;
@@ -148,7 +141,6 @@ export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0]
 
     scene.traverse((child) => {
       if (child.isMesh && child.material) {
-
         child.material.flatShading = false; // 각지게 보이는 설정 끄기
         child.geometry.computeVertexNormals();
         
@@ -160,7 +152,10 @@ export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0]
           // 지정 파트 bag_mesh, side_panel_mesh
           if (child.name === 'bag_mesh' || child.name === 'side_panel_mesh') {
             child.material.map = selectedTexture;
-            child.material.color.set('rgb(95, 86, 104)'); 
+            child.material.color.set('#412D15'); 
+            if (child.material.normalMap) {
+              child.material.normalScale.set(2, 2); 
+            }
             child.material.needsUpdate = true;
           }
         }
@@ -173,7 +168,7 @@ export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0]
         ) {
           child.material = child.material.clone(); 
           child.material.map = null; 
-          child.material.color.set('red');        
+          child.material.color.set('#FF0000');        
           child.material.needsUpdate = true;
         }
 
@@ -195,7 +190,7 @@ export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0]
       
       {/* 2초 누를때 그림자 */}
       <mesh ref={shadowMeshRef} visible={false}>
-        <planeGeometry args={[0.18, 0.18]} /> 
+        <planeGeometry args={[0.15, 0.15]} /> 
         <meshBasicMaterial 
           map={shadowTexture} 
           transparent={true} 
