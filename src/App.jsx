@@ -47,11 +47,14 @@ const drawAuraCursor = (context, x, y) => {
 export default function App() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const wasFistRef = useRef(false);
   const [statusText, setStatusText] = useState("카메라 초기화 중...");
   const [isTracking, setIsTracking] = useState(false);
   const [route, setRoute] = useState(window.location.pathname || "/");
   const [permissionError, setPermissionError] = useState(false);
   const [errorDetails, setErrorDetails] = useState("");
+  const [bagYaw, setBagYaw] = useState(Math.PI / 12);
+  const [bagPitch, setBagPitch] = useState(0);
 
   const handPosRef = useRef({ x: 0, y: 0 }); 
   const hoveredMaterialRef = useRef(null); // 가방에서 터치된 재질 이름
@@ -61,6 +64,8 @@ export default function App() {
   const showBagOverlay = route === "/bag";
   const showCameraPage = route === "/camera";
   const showCamera = showBagOverlay || showCameraPage;
+  const showGlowOverlay = showBagOverlay;
+  const mirrorCamera = showCameraPage;
 
   useEffect(() => {
     const handlePopState = () => setRoute(window.location.pathname || "/");
@@ -152,7 +157,73 @@ export default function App() {
 
           handPosRef.current = { x: cursorRef.current.x, y: cursorRef.current.y };
 
-          drawAuraCursor(context, cursorRef.current.x, cursorRef.current.y);
+          const rect = canvas.getBoundingClientRect();
+          const clientX = rect.left + cursorRef.current.x;
+          const clientY = rect.top + cursorRef.current.y;
+
+          window.dispatchEvent(
+            new MouseEvent("mousemove", {
+              bubbles: true,
+              clientX,
+              clientY,
+            }),
+          );
+
+          const fingerTips = [
+            landmarks[4],
+            landmarks[8],
+            landmarks[12],
+            landmarks[16],
+            landmarks[20],
+          ].filter(Boolean);
+          const isFist =
+            fingerTips.length === 5 &&
+            fingerTips.every((point) => {
+              const dx = point.x - rawX;
+              const dy = point.y - rawY;
+              return Math.hypot(dx, dy) < 0.18;
+            });
+
+          if (showBagOverlay && isFist) {
+            const yawFromX = ((0.5 - rawX) * Math.PI * 2.2) % (Math.PI * 2);
+            const pitchFromY = ((rawY - 0.5) * Math.PI * 0.8) % (Math.PI * 2);
+            setBagYaw(yawFromX);
+            setBagPitch(pitchFromY);
+          }
+
+          if (!wasFistRef.current && isFist) {
+            const target = document.elementFromPoint(clientX, clientY);
+            target?.dispatchEvent(
+              new MouseEvent("mousedown", {
+                bubbles: true,
+                button: 0,
+                clientX,
+                clientY,
+              }),
+            );
+            target?.dispatchEvent(
+              new MouseEvent("mouseup", {
+                bubbles: true,
+                button: 0,
+                clientX,
+                clientY,
+              }),
+            );
+            target?.dispatchEvent(
+              new MouseEvent("click", {
+                bubbles: true,
+                button: 0,
+                clientX,
+                clientY,
+              }),
+            );
+          }
+
+          wasFistRef.current = isFist;
+
+          if (showGlowOverlay) {
+            drawAuraCursor(context, cursorRef.current.x, cursorRef.current.y);
+          }
           
           setIsTracking(true);
           return;
@@ -269,6 +340,7 @@ export default function App() {
             
             <McmBag 
               currentMood="street" 
+              rotation={[bagPitch, bagYaw, 0]}
               handPosRef={handPosRef} 
               setHoveredMaterial={(name) => { hoveredMaterialRef.current = name; }} 
             />
@@ -285,6 +357,7 @@ export default function App() {
         fullscreen={showCameraPage}
         hideVideo={showBagOverlay}
         overlay={showBagOverlay}
+        mirror={mirrorCamera}
       />
 
       {showCamera && (
