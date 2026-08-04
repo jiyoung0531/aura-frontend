@@ -1,45 +1,27 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useGLTF, useAnimations, useTexture } from '@react-three/drei';
+import { useGLTF, useAnimations } from '@react-three/drei';
 import * as THREE from 'three';
 
-export function Accessory({ modelUrl, handPosRef, targetObject, initialFloatPosition, scale = 1 }) {
+export function Accessory({ modelUrl, handPosRef, targetObject, initialFloatPosition, attachmentOffset = [0, 0, 0], attachmentRotation = [0, 0, 0], scale = 1 }) {
   const { camera, raycaster, size } = useThree();
   const { scene, animations } = useGLTF(modelUrl);
   const { actions } = useAnimations(animations, scene); 
 
   const accessoryRef = useRef();
   const hoverTimer = useRef(0); 
+  const canToggleRef = useRef(true); 
   const [isAttached, setIsAttached] = useState(false); 
 
   const floatPosition = initialFloatPosition || new THREE.Vector3(0, -1.5, 1.5); 
 
-  const logoTexture = useTexture('/textures/mcm_logo2.png');
-
-  useEffect(() => {
-    if (logoTexture) {
-      logoTexture.flipY = false;
-      logoTexture.colorSpace = THREE.SRGBColorSpace;
-
-      logoTexture.wrapS = THREE.RepeatWrapping;
-      logoTexture.wrapT = THREE.RepeatWrapping;
-      logoTexture.repeat.set(15, 15); 
-      
-      logoTexture.minFilter = THREE.LinearFilter;
-      logoTexture.generateMipmaps = false;
-    }
-
-    scene.traverse((child) => {
-      if (child.isMesh && child.material) {
-        // 곰돌이 모델 옷 입히기
-        if (modelUrl.includes('teddy_keyring') && child.name === 'teddy_body') {
-          child.material = child.material.clone();
-          child.material.map = logoTexture;
-          child.material.needsUpdate = true;
-        }
-      }
-    });
-  }, [scene, logoTexture, modelUrl]);
+  const offsetMatrix = useMemo(() => {
+    const mat = new THREE.Matrix4();
+    const pos = new THREE.Vector3(...attachmentOffset);
+    const rot = new THREE.Quaternion().setFromEuler(new THREE.Euler(...attachmentRotation));
+    mat.compose(pos, rot, new THREE.Vector3(1, 1, 1));
+    return mat;
+  }, [attachmentOffset, attachmentRotation]);
 
   useEffect(() => {
     if (actions['TiltAnimation']) {
@@ -51,43 +33,59 @@ export function Accessory({ modelUrl, handPosRef, targetObject, initialFloatPosi
   useFrame((state, delta) => {
     if (!accessoryRef.current) return;
 
-    if (!isAttached) {
-      // 부착 전: 위아래로 둥둥 떠다기기
-      const t = state.clock.elapsedTime;
-      accessoryRef.current.position.y = floatPosition.y + Math.sin(t * 2) * 0.05;
-      accessoryRef.current.position.x = floatPosition.x;
-      accessoryRef.current.position.z = floatPosition.z;
+    if (handPosRef?.current) {
+      const x = (handPosRef.current.x / size.width) * 2 - 1;
+      const y = -(handPosRef.current.y / size.height) * 2 + 1;
+      raycaster.setFromCamera({ x, y }, camera);
+      
+      const intersects = raycaster.intersectObject(scene, true).filter(hit => hit.object.isMesh && hit.object.visible);
 
-      // 손 위치가 있을 때만 충돌 검사 수행
-      if (handPosRef?.current) {
-        const x = (handPosRef.current.x / size.width) * 2 - 1;
-        const y = -(handPosRef.current.y / size.height) * 2 + 1;
-        raycaster.setFromCamera({ x, y }, camera);
-        
-        const intersects = raycaster.intersectObject(scene, true);
-
-        if (intersects.length > 0) {
+      if (intersects.length > 0) {
+        if (canToggleRef.current) {
           hoverTimer.current += delta; 
 
-          if (hoverTimer.current >= 1.5) {
-            setIsAttached(true); 
+          if (hoverTimer.current >= 1.0) {
+            setIsAttached((prev) => !prev);
+            hoverTimer.current = 0; 
+            canToggleRef.current = false; 
+
             if (actions['TiltAnimation']) {
               actions['TiltAnimation'].reset().play();
             }
           }
-        } else {
-          if (hoverTimer.current > 0) {
-            hoverTimer.current = 0;
-          }
         }
+      } else {
+        if (hoverTimer.current > 0) hoverTimer.current = 0;
+        canToggleRef.current = true;
       }
+    }
+
+    if (!isAttached) {
+
+      const t = state.clock.elapsedTime;
+      accessoryRef.current.position.y = floatPosition.y + Math.sin(t * 2) * 0.05;
+      accessoryRef.current.position.x = floatPosition.x;
+      accessoryRef.current.position.z = floatPosition.z;
+      accessoryRef.current.rotation.set(0, 0, 0); 
     } else {
-     if (targetObject && accessoryRef.current) {
-        if (accessoryRef.current.parent !== targetObject) {
-          targetObject.add(accessoryRef.current); 
-          accessoryRef.current.position.set(0, 0, 0); 
-          accessoryRef.current.rotation.set(0, 0, 0); 
-        }
+      if (targetObject && accessoryRef.current.parent) {
+        targetObject.updateWorldMatrix(true, false);
+
+        const targetWorldMat = targetObject.matrixWorld;
+        const finalWorldMat = new THREE.Matrix4().multiplyMatrices(targetWorldMat, offsetMatrix);
+
+        const parent = accessoryRef.current.parent;
+        parent.updateWorldMatrix(true, false);
+        const parentInverse = new THREE.Matrix4().copy(parent.matrixWorld).invert();
+        
+        const localMat = new THREE.Matrix4().multiplyMatrices(parentInverse, finalWorldMat);
+
+        const _dummyScale = new THREE.Vector3();
+        localMat.decompose(
+          accessoryRef.current.position,
+          accessoryRef.current.quaternion,
+          _dummyScale
+        );
       }
     }
   });

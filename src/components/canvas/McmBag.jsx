@@ -249,7 +249,8 @@ export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0]
             handPosRef={handPosRef} 
             targetObject={zipperMesh}
             initialFloatPosition={new THREE.Vector3(-0.15, -0.6, 0.5)} 
-            scale={1.0} 
+            attachmentOffset={[0.12, 0.16, 0.13]}
+            scale={1.5} 
           />
           
           {/* 테디베어 키링 */}
@@ -258,7 +259,9 @@ export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0]
             handPosRef={handPosRef} 
             targetObject={zipperMesh}
             initialFloatPosition={new THREE.Vector3(0.15, -0.6, 0.5)} 
-            scale={1.0} 
+            attachmentOffset={[0.12, 0.16, 0.13]}
+            attachmentRotation={[0, -Math.PI / 2, 0]}
+            scale={1.5} 
           />
         </>
       )}
