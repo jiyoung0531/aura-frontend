@@ -3,7 +3,9 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useGLTF, useAnimations } from '@react-three/drei';
 import * as THREE from 'three';
 
-export function Accessory({ modelUrl, handPosRef, targetObject, initialFloatPosition, attachmentOffset = [0, 0, 0], attachmentRotation = [0, 0, 0], scale = 1 }) {
+export function Accessory({ modelUrl, handPosRef, targetObject, initialFloatPosition,
+  attachmentOffset = [0, 0, 0], attachmentRotation = [0, 0, 0], scale = 1,
+  onToggleAttach, attachSoundUrl = '/sounds/attach.mp3'  }) {
   const { camera, raycaster, size } = useThree();
   const { scene, animations } = useGLTF(modelUrl);
   const { actions } = useAnimations(animations, scene); 
@@ -13,6 +15,8 @@ export function Accessory({ modelUrl, handPosRef, targetObject, initialFloatPosi
   const canToggleRef = useRef(true); 
   const [isAttached, setIsAttached] = useState(false); 
 
+  const attachSound = useMemo(() => new Audio(attachSoundUrl), [attachSoundUrl]);
+  
   const floatPosition = initialFloatPosition || new THREE.Vector3(0, -1.5, 1.5); 
 
   const offsetMatrix = useMemo(() => {
@@ -45,9 +49,21 @@ export function Accessory({ modelUrl, handPosRef, targetObject, initialFloatPosi
           hoverTimer.current += delta; 
 
           if (hoverTimer.current >= 1.0) {
-            setIsAttached((prev) => !prev);
+            // ⭐ 단순 토글 대신, 상태가 true(부착)가 될 때 소리를 재생하도록 변경!
+            setIsAttached((prev) => {
+              const newState = !prev;
+              
+              if (newState) {
+                attachSound.currentTime = 0; // 연속 재생 시 안 씹히게 0초로 초기화
+                attachSound.play().catch(e => console.log('소리 재생 실패:', e));
+              }
+              
+              if (onToggleAttach) onToggleAttach(newState); // 가방 기우뚱 모션을 위한 신호
+              return newState;
+            });
+
             hoverTimer.current = 0; 
-            canToggleRef.current = false; 
+            canToggleRef.current = false;
 
             if (actions['TiltAnimation']) {
               actions['TiltAnimation'].reset().play();

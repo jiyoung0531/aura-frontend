@@ -252,6 +252,7 @@ export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0]
             attachmentOffset={[0.12, 0.16, 0.13]}
             attachmentRotation={[0, Math.PI / 4, 0]}
             scale={1.5} 
+            attachSoundUrl="/sounds/original_sound.mp3"
           />
           
           {/* 테디베어 키링 */}
@@ -263,6 +264,7 @@ export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0]
             attachmentOffset={[0.12, 0.16, 0.13]}
             attachmentRotation={[0, -Math.PI / 2, 0]}
             scale={1.5} 
+            attachSoundUrl="/sounds/teddy_sound.mp3"
           />
         </>
       )}
