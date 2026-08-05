@@ -50,6 +50,14 @@ export default function App() {
   const wasFistRef = useRef(false);
   const [statusText, setStatusText] = useState("카메라 초기화 중...");
   const [isTracking, setIsTracking] = useState(false);
+  const [isFistState, setIsFistState] = useState(false);
+  const [handImagePos, setHandImagePos] = useState({
+    x: 0,
+    y: 0,
+    visible: false,
+    size: 1,
+  });
+  const fistPhotoSrc = "/rock.png";
   const [route, setRoute] = useState(window.location.pathname || "/");
   const [permissionError, setPermissionError] = useState(false);
   const [errorDetails, setErrorDetails] = useState("");
@@ -58,7 +66,7 @@ export default function App() {
   const [bagYaw, setBagYaw] = useState(initialBagYaw);
   const [bagPitch, setBagPitch] = useState(initialBagPitch);
 
-  const handPosRef = useRef({ x: 0, y: 0 }); 
+  const handPosRef = useRef({ x: 0, y: 0 });
   const hoveredMaterialRef = useRef(null); // 가방에서 터치된 재질 이름
   const cursorRef = useRef({ x: null, y: null }); // 커서 속도 변조용
 
@@ -133,43 +141,9 @@ export default function App() {
           const rawY =
             validPalmPoints.reduce((sum, point) => sum + point.y, 0) /
             validPalmPoints.length;
-          const x = offsetX + (1 - rawX) * drawWidth;
-          const y = offsetY + rawY * drawHeight;
-
-          handPosRef.current = { x, y };
-
-          let speed = 1.0;
-          const currentMaterial = hoveredMaterialRef.current; 
-          
-          // 재질에 따라 커서 속도 조정
-          if (currentMaterial) {
-            if (currentMaterial.includes('bag') || currentMaterial.includes('panel')) speed = 0.38;
-            else if (currentMaterial.includes('zip') || currentMaterial.includes('buckle') || currentMaterial.includes('logo') || currentMaterial.includes('hardware')) speed = 1.2;
-            else if (currentMaterial.includes('strap') || currentMaterial.includes('handle') || currentMaterial.includes('line')) speed = 0.2;
-          }
-
-          if (cursorRef.current.x === null) {
-            cursorRef.current.x = x;
-            cursorRef.current.y = y;
-          }
-
-          // 보간 적용
-          cursorRef.current.x += (x - cursorRef.current.x) * (0.2 * speed);
-          cursorRef.current.y += (y - cursorRef.current.y) * (0.2 * speed);
-
-          handPosRef.current = { x: cursorRef.current.x, y: cursorRef.current.y };
-
-          const rect = canvas.getBoundingClientRect();
-          const clientX = rect.left + cursorRef.current.x;
-          const clientY = rect.top + cursorRef.current.y;
-
-          window.dispatchEvent(
-            new MouseEvent("mousemove", {
-              bubbles: true,
-              clientX,
-              clientY,
-            }),
-          );
+          const rawZ =
+            validPalmPoints.reduce((sum, point) => sum + (point.z || 0), 0) /
+            validPalmPoints.length;
 
           const fingerTips = [
             landmarks[4],
@@ -185,6 +159,91 @@ export default function App() {
               const dy = point.y - rawY;
               return Math.hypot(dx, dy) < 0.18;
             });
+          // debug: log fist detection
+          // eslint-disable-next-line no-console
+          console.log("App: isFist=", isFist, "fingerTipsCount=", fingerTips.length);
+
+          const palmWidth = landmarks[5] && landmarks[17]
+            ? Math.hypot(landmarks[5].x - landmarks[17].x, landmarks[5].y - landmarks[17].y)
+            : 0.18;
+          const wristToMiddle = landmarks[0] && landmarks[9]
+            ? Math.hypot(landmarks[0].x - landmarks[9].x, landmarks[0].y - landmarks[9].y)
+            : 0.18;
+          const handSize = Math.max(palmWidth, wristToMiddle, 0.08);
+
+          const x = offsetX + (1 - rawX) * drawWidth;
+          const y = offsetY + rawY * drawHeight;
+          const z = rawZ;
+
+          handPosRef.current = { x, y, z };
+
+          let speed = 1.0;
+          const currentMaterial = hoveredMaterialRef.current;
+
+          // 재질에 따라 커서 속도 조정
+          if (currentMaterial) {
+            if (
+              currentMaterial.includes("bag") ||
+              currentMaterial.includes("panel")
+            )
+              speed = 0.38;
+            else if (
+              currentMaterial.includes("zip") ||
+              currentMaterial.includes("buckle") ||
+              currentMaterial.includes("logo") ||
+              currentMaterial.includes("hardware")
+            )
+              speed = 1.2;
+            else if (
+              currentMaterial.includes("strap") ||
+              currentMaterial.includes("handle") ||
+              currentMaterial.includes("line")
+            )
+              speed = 0.2;
+          }
+
+          if (cursorRef.current.x === null) {
+            cursorRef.current.x = x;
+            cursorRef.current.y = y;
+          }
+
+          if (isFist) {
+            cursorRef.current.x = x;
+            cursorRef.current.y = y;
+          } else {
+            // 보간 적용
+            cursorRef.current.x += (x - cursorRef.current.x) * (0.2 * speed);
+            cursorRef.current.y += (y - cursorRef.current.y) * (0.2 * speed);
+          }
+
+          handPosRef.current = {
+            x: cursorRef.current.x,
+            y: cursorRef.current.y,
+            z,
+            targetX: x,
+            targetY: y,
+            isFist,
+            handSize,
+          };
+
+          setIsFistState(isFist);
+          setHandImagePos({
+            x: cursorRef.current.x,
+            y: cursorRef.current.y,
+            visible: true,
+          });
+
+          const rect = canvas.getBoundingClientRect();
+          const clientX = rect.left + cursorRef.current.x;
+          const clientY = rect.top + cursorRef.current.y;
+
+          window.dispatchEvent(
+            new MouseEvent("mousemove", {
+              bubbles: true,
+              clientX,
+              clientY,
+            }),
+          );
 
           if (showBagOverlay) {
             if (isFist) {
@@ -228,15 +287,12 @@ export default function App() {
 
           wasFistRef.current = isFist;
 
-          if (showGlowOverlay) {
-            drawAuraCursor(context, cursorRef.current.x, cursorRef.current.y);
-          }
-          
           setIsTracking(true);
           return;
         }
       }
 
+      setHandImagePos((prev) => ({ ...prev, visible: false }));
       setIsTracking(false);
     };
 
@@ -344,16 +400,29 @@ export default function App() {
           <Canvas camera={{ position: [0, 0, 5], fov: 50 }}>
             <ambientLight intensity={3.5} />
             <directionalLight position={[10, 10, 5]} intensity={3} />
-            
-            <McmBag 
-              currentMood="street" 
+
+            <McmBag
+              currentMood="street"
               rotation={[bagPitch, bagYaw, 0]}
-              handPosRef={handPosRef} 
-              setHoveredMaterial={(name) => { hoveredMaterialRef.current = name; }} 
+              handPosRef={handPosRef}
+              setHoveredMaterial={(name) => {
+                hoveredMaterialRef.current = name;
+              }}
             />
-            
+
             <OrbitControls />
           </Canvas>
+          <img
+            src={isFistState ? fistPhotoSrc : "/hand.png"}
+            alt="Hand overlay"
+            className="hand-image-overlay"
+            style={{
+              left: `${handImagePos.x}px`,
+              top: `${handImagePos.y}px`,
+              opacity: handImagePos.visible ? 1 : 0,
+              width: isFistState ? "110px" : "180px",
+            }}
+          />
         </div>
       )}
 
