@@ -57,7 +57,7 @@ export default function App() {
     visible: false,
     size: 1,
   });
-  const fistPhotoSrc = "/rock.png";
+  const fistPhotoSrc = "/rock2.png";
   const [route, setRoute] = useState(window.location.pathname || "/");
   const [permissionError, setPermissionError] = useState(false);
   const [errorDetails, setErrorDetails] = useState("");
@@ -413,14 +413,14 @@ export default function App() {
             <OrbitControls />
           </Canvas>
           <img
-            src={isFistState ? fistPhotoSrc : "/hand.png"}
+            src={isFistState ? fistPhotoSrc : "/hand2.png"}
             alt="Hand overlay"
             className="hand-image-overlay"
             style={{
               left: `${handImagePos.x}px`,
               top: `${handImagePos.y}px`,
               opacity: handImagePos.visible ? 1 : 0,
-              width: isFistState ? "110px" : "180px",
+              width: isFistState ? "110px" : "170px",
             }}
           />
         </div>
