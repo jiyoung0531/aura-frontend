@@ -32,6 +32,23 @@ export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0]
   const [zipperMesh, setZipperMesh] = useState(null); 
   const bagGroupRef = useRef();
   const currentRotation = phase === 3 ? [0, 0, 0] : rotation;
+  const [isBagTilted, setIsBagTilted] = useState(false);
+  
+  const tiltTimeoutRef = useRef(null);
+
+  const handleToggleAttach = (attached) => {
+    if (attached) {
+      setIsBagTilted(true); 
+      
+      if (tiltTimeoutRef.current) clearTimeout(tiltTimeoutRef.current);
+      
+      tiltTimeoutRef.current = setTimeout(() => {
+        setIsBagTilted(false);
+      }, 400); 
+    } else {
+      setIsBagTilted(false); 
+    }
+  };
 
   useEffect(() => {
     // 20초 뒤 Phase 3 전환
@@ -175,15 +192,17 @@ export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0]
       }
     } 
     // Phase 3: 가방 정면 복구 및 기존 효과 끄기 
-    else if (phase === 3) {
-      resetVisualEffect(); 
-      
+   else if (phase === 3) {
+      if (shadowMeshRef.current) shadowMeshRef.current.visible = false;
+      stopAllSounds();
+
       if (bagGroupRef.current) {
-        bagGroupRef.current.rotation.x = THREE.MathUtils.lerp(bagGroupRef.current.rotation.x, 0, 0.05);
+        const targetRotationX = isBagTilted ? 0.15 : 0;
+        bagGroupRef.current.rotation.x = THREE.MathUtils.lerp(bagGroupRef.current.rotation.x, targetRotationX, 0.1);
         bagGroupRef.current.rotation.y = THREE.MathUtils.lerp(bagGroupRef.current.rotation.y, 0, 0.05);
         bagGroupRef.current.rotation.z = THREE.MathUtils.lerp(bagGroupRef.current.rotation.z, 0, 0.05);
       }
-    }
+    } 
   });
 
   const selectedTexture = textures[currentMood];
@@ -249,10 +268,11 @@ export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0]
             handPosRef={handPosRef} 
             targetObject={zipperMesh}
             initialFloatPosition={new THREE.Vector3(-0.15, -0.6, 0.5)} 
-            attachmentOffset={[0.12, 0.16, 0.13]}
+            attachmentOffset={[0.18, 0.24, 0.18]}
             attachmentRotation={[0, Math.PI / 4, 0]}
             scale={1.5} 
             attachSoundUrl="/sounds/original_sound.mp3"
+            onToggleAttach={handleToggleAttach}
           />
           
           {/* 테디베어 키링 */}
@@ -261,10 +281,11 @@ export function McmBag({ currentMood = 'street', rotation = [0, Math.PI / 12, 0]
             handPosRef={handPosRef} 
             targetObject={zipperMesh}
             initialFloatPosition={new THREE.Vector3(0.15, -0.6, 0.5)} 
-            attachmentOffset={[0.12, 0.16, 0.13]}
+            attachmentOffset={[0.18, 0.24, 0.18]}
             attachmentRotation={[0, -Math.PI / 2, 0]}
             scale={1.5} 
             attachSoundUrl="/sounds/teddy_sound.mp3"
+            onToggleAttach={handleToggleAttach}
           />
         </>
       )}

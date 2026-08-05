@@ -3,29 +3,28 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useGLTF, useAnimations } from '@react-three/drei';
 import * as THREE from 'three';
 
-export function Accessory({ modelUrl, handPosRef, targetObject, initialFloatPosition,
-  attachmentOffset = [0, 0, 0], attachmentRotation = [0, 0, 0], scale = 1,
-  onToggleAttach, attachSoundUrl = '/sounds/attach.mp3'  }) {
+export function Accessory({ 
+  modelUrl, 
+  handPosRef, 
+  targetObject, 
+  initialFloatPosition, 
+  attachmentOffset = [0, 0, 0], 
+  attachmentRotation = [0, 0, 0], 
+  scale = 1, 
+  onToggleAttach, 
+  attachSoundUrl = '/sounds/attach.mp3'  
+}) {
   const { camera, raycaster, size } = useThree();
   const { scene, animations } = useGLTF(modelUrl);
   const { actions } = useAnimations(animations, scene); 
 
-  const accessoryRef = useRef();
+  const groupRef = useRef(null); 
   const hoverTimer = useRef(0); 
   const canToggleRef = useRef(true); 
   const [isAttached, setIsAttached] = useState(false); 
 
   const attachSound = useMemo(() => new Audio(attachSoundUrl), [attachSoundUrl]);
-  
-  const floatPosition = initialFloatPosition || new THREE.Vector3(0, -1.5, 1.5); 
-
-  const offsetMatrix = useMemo(() => {
-    const mat = new THREE.Matrix4();
-    const pos = new THREE.Vector3(...attachmentOffset);
-    const rot = new THREE.Quaternion().setFromEuler(new THREE.Euler(...attachmentRotation));
-    mat.compose(pos, rot, new THREE.Vector3(1, 1, 1));
-    return mat;
-  }, [attachmentOffset, attachmentRotation]);
+  const floatPos = useMemo(() => initialFloatPosition || new THREE.Vector3(0, -1.5, 1.5), [initialFloatPosition]);
 
   useEffect(() => {
     if (actions['TiltAnimation']) {
@@ -35,8 +34,9 @@ export function Accessory({ modelUrl, handPosRef, targetObject, initialFloatPosi
   }, [actions]);
 
   useFrame((state, delta) => {
-    if (!accessoryRef.current) return;
+    if (!groupRef.current) return;
 
+    // 1. 손 충돌 감지
     if (handPosRef?.current) {
       const x = (handPosRef.current.x / size.width) * 2 - 1;
       const y = -(handPosRef.current.y / size.height) * 2 + 1;
@@ -47,23 +47,18 @@ export function Accessory({ modelUrl, handPosRef, targetObject, initialFloatPosi
       if (intersects.length > 0) {
         if (canToggleRef.current) {
           hoverTimer.current += delta; 
-
           if (hoverTimer.current >= 1.0) {
-            // ⭐ 단순 토글 대신, 상태가 true(부착)가 될 때 소리를 재생하도록 변경!
             setIsAttached((prev) => {
               const newState = !prev;
-              
               if (newState) {
-                attachSound.currentTime = 0; // 연속 재생 시 안 씹히게 0초로 초기화
-                attachSound.play().catch(e => console.log('소리 재생 실패:', e));
+                attachSound.currentTime = 0; 
+                attachSound.play().catch(() => {});
               }
-              
-              if (onToggleAttach) onToggleAttach(newState); // 가방 기우뚱 모션을 위한 신호
+              if (onToggleAttach) onToggleAttach(newState); 
               return newState;
             });
-
             hoverTimer.current = 0; 
-            canToggleRef.current = false;
+            canToggleRef.current = false; 
 
             if (actions['TiltAnimation']) {
               actions['TiltAnimation'].reset().play();
@@ -76,35 +71,36 @@ export function Accessory({ modelUrl, handPosRef, targetObject, initialFloatPosi
       }
     }
 
+    // 2. 위치 업데이트 (버그 원천 차단)
     if (!isAttached) {
-
+      // 떨어져 있을 때: 둥둥 떠다니기
       const t = state.clock.elapsedTime;
-      accessoryRef.current.position.y = floatPosition.y + Math.sin(t * 2) * 0.05;
-      accessoryRef.current.position.x = floatPosition.x;
-      accessoryRef.current.position.z = floatPosition.z;
-      accessoryRef.current.rotation.set(0, 0, 0); 
+      groupRef.current.position.set(floatPos.x, floatPos.y + Math.sin(t * 2) * 0.05, floatPos.z);
+      groupRef.current.rotation.set(0, 0, 0); 
     } else {
-      if (targetObject && accessoryRef.current.parent) {
+      // 붙었을 때: 지퍼의 최신 위치를 즉각 복사해서 따라다니기
+      if (targetObject) {
         targetObject.updateWorldMatrix(true, false);
+        targetObject.getWorldPosition(groupRef.current.position);
+        targetObject.getWorldQuaternion(groupRef.current.quaternion);
 
-        const targetWorldMat = targetObject.matrixWorld;
-        const finalWorldMat = new THREE.Matrix4().multiplyMatrices(targetWorldMat, offsetMatrix);
+        // 사용자가 지정한 위치(Offset)만큼 밀어주기
+        groupRef.current.translateX(attachmentOffset[0]);
+        groupRef.current.translateY(attachmentOffset[1]);
+        groupRef.current.translateZ(attachmentOffset[2]);
 
-        const parent = accessoryRef.current.parent;
-        parent.updateWorldMatrix(true, false);
-        const parentInverse = new THREE.Matrix4().copy(parent.matrixWorld).invert();
-        
-        const localMat = new THREE.Matrix4().multiplyMatrices(parentInverse, finalWorldMat);
-
-        const _dummyScale = new THREE.Vector3();
-        localMat.decompose(
-          accessoryRef.current.position,
-          accessoryRef.current.quaternion,
-          _dummyScale
+        // 사용자가 지정한 각도(Rotation)만큼 틀어주기
+        const offsetQuat = new THREE.Quaternion().setFromEuler(
+          new THREE.Euler(attachmentRotation[0], attachmentRotation[1], attachmentRotation[2])
         );
+        groupRef.current.quaternion.multiply(offsetQuat);
       }
     }
   });
 
-  return <primitive object={scene} ref={accessoryRef} scale={scale} />;
+  return (
+    <group ref={groupRef}>
+      <primitive object={scene} scale={scale} />
+    </group>
+  );
 }
