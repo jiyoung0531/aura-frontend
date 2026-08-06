@@ -44,6 +44,60 @@ const drawAuraCursor = (context, x, y) => {
   context.restore();
 };
 
+const createParticleField = (width, height, count = 270) => {
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const maxRadius = Math.max(width, height) * 0.38;
+
+  return Array.from({ length: count }, (_, index) => {
+    const angle = (index / count) * Math.PI * 2 + Math.random() * 0.8;
+    const radius = maxRadius * (0.8 + Math.random() * 0.9);
+
+    return {
+      angle,
+      radius,
+      angularSpeed: 0.0022 + Math.random() * 0.0028,
+      radiusDecay: 0.9978 - Math.random() * 0.00035,
+      size: 1 + Math.random() * 2.2,
+      alpha: 0.24 + Math.random() * 0.5,
+      phase: Math.random() * Math.PI * 2,
+    };
+  });
+};
+
+const drawParticleField = (context, width, height, particles, time) => {
+  if (!particles?.length) return;
+
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const progress = Math.min(1, time / 12000);
+
+  context.save();
+  context.globalCompositeOperation = "screen";
+
+  particles.forEach((particle, index) => {
+    particle.angle += particle.angularSpeed;
+    particle.radius *= particle.radiusDecay;
+
+    const swirlRadius = particle.radius *
+      (0.88 + 0.12 * Math.sin(time * 0.001 + particle.phase + index * 0.018));
+    const spiralAngle = particle.angle + index * 0.03;
+
+    const x = centerX + Math.cos(spiralAngle) * swirlRadius;
+    const y = centerY + Math.sin(spiralAngle) * swirlRadius;
+
+    const alpha = Math.max(0.14, particle.alpha * (0.65 + (1 - progress) * 0.35));
+    const size = particle.size * (0.85 + 0.45 * Math.sin(time * 0.002 + particle.phase));
+
+    context.beginPath();
+    context.arc(x, y, size, 0, Math.PI * 2);
+    context.fillStyle = `rgba(255,255,255,${alpha})`;
+    context.fill();
+  });
+
+  context.restore();
+};
+
 export default function App() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -69,6 +123,7 @@ export default function App() {
   const handPosRef = useRef({ x: 0, y: 0 });
   const hoveredMaterialRef = useRef(null); // 가방에서 터치된 재질 이름
   const cursorRef = useRef({ x: null, y: null }); // 커서 속도 변조용
+  const particleStateRef = useRef(null);
 
   const showBagScene = route === "/" || route === "/bag";
   const showBagOverlay = route === "/bag";
@@ -107,6 +162,12 @@ export default function App() {
       if (context) {
         context.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
+
+      const nextWidth = width || window.innerWidth;
+      const nextHeight = height || window.innerHeight;
+      particleStateRef.current = {
+        particles: createParticleField(nextWidth, nextHeight, 140),
+      };
     };
 
     const handleResults = (results) => {
@@ -122,6 +183,20 @@ export default function App() {
         canvas,
       );
       context.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+
+      if (!particleStateRef.current?.particles?.length) {
+        particleStateRef.current = {
+          particles: createParticleField(canvas.clientWidth, canvas.clientHeight, 140),
+        };
+      }
+
+      drawParticleField(
+        context,
+        canvas.clientWidth,
+        canvas.clientHeight,
+        particleStateRef.current.particles,
+        performance.now(),
+      );
 
       const landmarks = results.landmarks?.[0];
       if (landmarks?.length) {
