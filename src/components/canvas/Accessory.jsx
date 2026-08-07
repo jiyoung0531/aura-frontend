@@ -84,12 +84,12 @@ export function Accessory({
         targetObject.getWorldPosition(groupRef.current.position);
         targetObject.getWorldQuaternion(groupRef.current.quaternion);
 
-        // 사용자가 지정한 위치(Offset)만큼 밀어주기
+        // 사용자가 지정한 위치만큼 밀어주기
         groupRef.current.translateX(attachmentOffset[0]);
         groupRef.current.translateY(attachmentOffset[1]);
         groupRef.current.translateZ(attachmentOffset[2]);
 
-        // 사용자가 지정한 각도(Rotation)만큼 틀어주기
+        // 사용자가 지정한 각도만큼 틀어주기
         const offsetQuat = new THREE.Quaternion().setFromEuler(
           new THREE.Euler(attachmentRotation[0], attachmentRotation[1], attachmentRotation[2])
         );
