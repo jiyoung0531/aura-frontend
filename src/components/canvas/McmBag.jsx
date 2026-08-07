@@ -1,22 +1,30 @@
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import * as THREE from 'three';
+import { useGLTF, useTexture } from '@react-three/drei';
+import { Accessory } from './Accessory';
 import { useInteractionRecorder } from '../../hooks/useInteractionRecorder';
-import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Accessory } from "./Accessory";
-import { useFrame, useThree } from "@react-three/fiber";
-import * as THREE from "three";
-import { useGLTF, useTexture } from "@react-three/drei";
 
-const BAG_MODEL_URL = "/models/mcm_final_8.glb";
+const BAG_MODEL_URL = '/models/mcm_final_8.glb';
 const TEXTURE_URLS = {
-  street: "/textures/romantic_pattern.png",
-  romantic: "/textures/romantic_pattern.png",
-  classic: "/textures/street_pattern.png",
-  minimal: "/textures/street_pattern.png",
-  logo_g: "/textures/logo_g.png",
-  logo_r: "/textures/logo_r.png",
+  street: '/textures/romantic_pattern.png',
+  romantic: '/textures/romantic_pattern.png',
+  classic: '/textures/street_pattern.png',
+  minimal: '/textures/street_pattern.png',
+  logo_g: '/textures/logo_g.png',
+  logo_r: '/textures/logo_r.png',
+};
+
+const resolvePartName = (meshName) => {
+  const name = meshName.toLowerCase();
+  if (name.includes('zip')) return 'ZIPPER_LINE';
+  if (name.includes('logo') || name.includes('stud')) return 'LOGO_STUD';
+  if (name.includes('strap') || name.includes('buckle') || name.includes('handle') || name.includes('hardware')) return 'STRAP_BUCKLE';
+  return 'BISETOS_LEATHER';
 };
 
 export function McmBag({
-  currentMood = "street",
+  currentMood = 'street',
   rotation = [0, Math.PI / 12, 0],
   handPosRef,
   setHoveredMaterial,
@@ -40,35 +48,33 @@ export function McmBag({
   const currentRotation = phase === 3 ? [0, 0, 0] : rotation;
   const [isBagTilted, setIsBagTilted] = useState(false);
   const tiltTimeoutRef = useRef(null);
-  
-  const { markOrigin, enter, exit, flush } = useInteractionRecorder('test-123');
+
+  // 이벤트 트래킹 훅 연결
+  const { markOrigin, enter, exit, addRotation, flush } = useInteractionRecorder('test-123');
+  const prevRotY = useRef(rotation[1]);
 
   const handleToggleAttach = (attached) => {
     if (attached) {
-      setIsBagTilted(true);
-
-      if (tiltTimeoutRef.current) clearTimeout(tiltTimeoutRef.current);
-
-      tiltTimeoutRef.current = setTimeout(() => {
-        setIsBagTilted(false);
-      }, 400);
+      setTimeout(() => {
+        setIsBagTilted(true);
+        if (tiltTimeoutRef.current) clearTimeout(tiltTimeoutRef.current);
+        tiltTimeoutRef.current = setTimeout(() => setIsBagTilted(false), 400);
+      }, 0);
     } else {
-      setIsBagTilted(false);
+      setTimeout(() => setIsBagTilted(false), 0);
     }
   };
 
- useEffect(() => {
-    markOrigin(); // 시작 시간 기록
+  useEffect(() => {
+    markOrigin(); 
 
-    // 20초 뒤 Phase 3 전환
-    const timer = setTimeout(async () => { 
+    const timer = setTimeout(async () => {
       console.log("Phase 3 시작: 가방 인터랙션 종료, 악세서리 등장!");
-      
-      await flush(); 
-      
+      await flush();
       setPhase(3);
-    }, 20000); 
-    return () => clearTimeout(timer); 
+    }, 20000);
+    
+    return () => clearTimeout(timer);
   }, [flush, markOrigin]);
 
   useEffect(() => {
@@ -80,29 +86,26 @@ export function McmBag({
         const response = await fetch(url);
         if (!response.ok) return;
         const arrayBuffer = await response.arrayBuffer();
-        const audioBuffer =
-          await audioCtxRef.current.decodeAudioData(arrayBuffer);
+        const audioBuffer = await audioCtxRef.current.decodeAudioData(arrayBuffer);
         audioBuffers.current[key] = audioBuffer;
       } catch (error) {}
     };
 
-    loadSound("leather", "/sounds/leather.mp3");
-    loadSound("metal", "/sounds/logo.mp3");
-    loadSound("strap", "/sounds/handle.mp3");
-    loadSound("logo", "/sounds/logo.mp3");
-    loadSound("zipper", "/sounds/zipper.mp3");
-    loadSound("handle", "/sounds/handle.mp3");
+    loadSound('leather', '/sounds/leather.mp3');
+    loadSound('metal', '/sounds/logo.mp3');
+    loadSound('strap', '/sounds/handle.mp3');
+    loadSound('logo', '/sounds/logo.mp3');
+    loadSound('zipper', '/sounds/zipper.mp3');
+    loadSound('handle', '/sounds/handle.mp3');
   }, []);
 
   const playSound = (category) => {
     if (!audioCtxRef.current) return;
-    if (audioCtxRef.current.state === "suspended") audioCtxRef.current.resume();
+    if (audioCtxRef.current.state === 'suspended') audioCtxRef.current.resume();
     const buffer = audioBuffers.current[category];
     if (buffer) {
       if (activeSources.current[category]) {
-        try {
-          activeSources.current[category].stop();
-        } catch (e) {}
+        try { activeSources.current[category].stop(); } catch (e) {}
       }
       const source = audioCtxRef.current.createBufferSource();
       source.buffer = buffer;
@@ -114,23 +117,21 @@ export function McmBag({
   };
 
   const stopAllSounds = () => {
-    Object.values(activeSources.current).forEach((source) => {
-      try {
-        source.stop();
-      } catch (e) {}
+    Object.values(activeSources.current).forEach(source => {
+      try { source.stop(); } catch(e) {}
     });
     activeSources.current = {};
   };
 
   const shadowTexture = useMemo(() => {
-    const canvas = document.createElement("canvas");
+    const canvas = document.createElement('canvas');
     canvas.width = 128;
     canvas.height = 128;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
-    gradient.addColorStop(0, "rgba(0, 0, 0, 0.9)");
-    gradient.addColorStop(0.5, "rgba(0, 0, 0, 0.6)");
-    gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+    gradient.addColorStop(0, 'rgba(0, 0, 0, 0.9)');
+    gradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.6)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 128, 128);
     return new THREE.CanvasTexture(canvas);
@@ -156,8 +157,22 @@ export function McmBag({
 
     // Phase 2: 가방 소리, 그림자, 질감 표시 작동
     if (phase === 2) {
+      const rotDiff = Math.abs(rotation[1] - prevRotY.current);
+      const isRotating = rotDiff > 0.001;
+
+      if (isRotating) {
+        enter({
+          phase: 'PHASE2_HAPTIC',
+          targetType: 'BAG_PART',
+          targetPart: 'BAG_BODY',
+          gesture: 'ROTATE'
+        });
+        addRotation(rotDiff * (180 / Math.PI));
+      }
+      prevRotY.current = rotation[1];
+
       const intersects = raycaster.intersectObject(scene, true);
-      let category = "none";
+      let category = 'none';
 
       if (intersects.length > 0) {
         const hit = intersects[0];
@@ -166,21 +181,14 @@ export function McmBag({
 
         setHoveredMaterial(hitName);
 
-        if (hitName.includes("logo")) category = "logo";
-        else if (hitName.includes("zip")) category = "zipper";
-        else if (hitName.includes("handle")) category = "handle";
-        else if (
-          hitName.includes("hardware") ||
-          hitName.includes("buckle") ||
-          hitName.includes("side")
-        )
-          category = "metal";
-        else if (hitName.includes("strap") || hitName.includes("line"))
-          category = "strap";
-        else if (hitName.includes("bag") || hitName.includes("panel"))
-          category = "leather";
+        if (hitName.includes('logo')) category = 'logo';
+        else if (hitName.includes('zip')) category = 'zipper';
+        else if (hitName.includes('handle')) category = 'handle';
+        else if (hitName.includes('hardware') || hitName.includes('buckle') || hitName.includes('side')) category = 'metal';
+        else if (hitName.includes('strap') || hitName.includes('line')) category = 'strap';
+        else if (hitName.includes('bag') || hitName.includes('panel')) category = 'leather';
 
-        if (category !== "none") {
+        if (category !== 'none') {
           if (shadowMeshRef.current) {
             shadowMeshRef.current.visible = true;
             shadowMeshRef.current.position.copy(hit.point);
@@ -190,25 +198,17 @@ export function McmBag({
               shadowMeshRef.current.lookAt(hit.point.clone().add(normal));
               shadowMeshRef.current.position.add(normal.multiplyScalar(0.015));
             }
-            shadowMeshRef.current.scale.lerp(
-              new THREE.Vector3(1.3, 1.3, 1.3),
-              0.15,
-            );
+            shadowMeshRef.current.scale.lerp(new THREE.Vector3(1.3, 1.3, 1.3), 0.15);
           }
 
           const distance = hit.point.distanceTo(lastHitPoint.current);
           lastHitPoint.current.copy(hit.point);
           const rawSpeed = (distance / delta) * 2.0;
           const targetRate = Math.max(0.5, Math.min(0.5 + rawSpeed, 2.5));
-          currentPlaybackRate.current = THREE.MathUtils.lerp(
-            currentPlaybackRate.current,
-            targetRate,
-            0.1,
-          );
+          currentPlaybackRate.current = THREE.MathUtils.lerp(currentPlaybackRate.current, targetRate, 0.1);
 
           if (activeSources.current[category]) {
-            activeSources.current[category].playbackRate.value =
-              currentPlaybackRate.current;
+            activeSources.current[category].playbackRate.value = currentPlaybackRate.current;
           }
 
           if (lastHoveredCategory.current !== category) {
@@ -216,22 +216,23 @@ export function McmBag({
             lastHoveredCategory.current = category;
             playSound(category);
           }
-          
-          console.log("현재 터치 중인 부위:", hitName);
-          enter({
-            phase: 'PHASE2_HAPTIC',
-            targetType: 'BAG_PART',
-            targetPart: hitName, 
-            gesture: 'HOVER'
-          });
 
+          if (!isRotating) {
+            console.log("현재 터치 중인 부위:", resolvePartName(hitName));
+            enter({
+              phase: 'PHASE2_HAPTIC',
+              targetType: 'BAG_PART',
+              targetPart: resolvePartName(hitName),
+              gesture: 'HOVER'
+            });
+          }
         } else {
           resetVisualEffect();
-          exit();
+          if (!isRotating) exit();
         }
       } else {
         resetVisualEffect();
-        exit();
+        if (!isRotating) exit();
       }
     }
     // Phase 3: 가방 정면 복구 및 기존 효과 끄기
@@ -241,21 +242,9 @@ export function McmBag({
 
       if (bagGroupRef.current) {
         const targetRotationX = isBagTilted ? 0.15 : 0;
-        bagGroupRef.current.rotation.x = THREE.MathUtils.lerp(
-          bagGroupRef.current.rotation.x,
-          targetRotationX,
-          0.1,
-        );
-        bagGroupRef.current.rotation.y = THREE.MathUtils.lerp(
-          bagGroupRef.current.rotation.y,
-          0,
-          0.05,
-        );
-        bagGroupRef.current.rotation.z = THREE.MathUtils.lerp(
-          bagGroupRef.current.rotation.z,
-          0,
-          0.05,
-        );
+        bagGroupRef.current.rotation.x = THREE.MathUtils.lerp(bagGroupRef.current.rotation.x, targetRotationX, 0.1);
+        bagGroupRef.current.rotation.y = THREE.MathUtils.lerp(bagGroupRef.current.rotation.y, 0, 0.05);
+        bagGroupRef.current.rotation.z = THREE.MathUtils.lerp(bagGroupRef.current.rotation.z, 0, 0.05);
       }
     }
   });
@@ -278,31 +267,31 @@ export function McmBag({
         child.material.flatShading = false;
         child.geometry.computeVertexNormals();
 
-        if (child.material.name === "bag") {
-          if (child.name === "bag_mesh" || child.name === "side_panel_mesh") {
+        if (child.material.name === 'bag') {
+          if (child.name === 'bag_mesh' || child.name === 'side_panel_mesh') {
             child.material.map = selectedTexture;
-            child.material.color.set("#412D15");
+            child.material.color.set('#412D15');
             if (child.material.normalMap) child.material.normalScale.set(2, 2);
             child.material.needsUpdate = true;
           }
         }
 
         if (
-          child.name === "shoulder_strap_001_mesh" ||
-          child.name === "shoulder_strap_002_mesh" ||
-          child.name === "strap_001_mesh" ||
-          child.name === "strap_002_mesh" ||
-          child.name === "round_line_001_mesh" ||
-          child.name === "round_line_002_mesh" ||
-          child.name === "strong_handle_mesh"
+          child.name === 'shoulder_strap_001_mesh' ||
+          child.name === 'shoulder_strap_002_mesh' ||
+          child.name === 'strap_001_mesh' ||
+          child.name === 'strap_002_mesh' ||
+          child.name === 'round_line_001_mesh' ||
+          child.name === 'round_line_002_mesh' ||
+          child.name === 'strong_handle_mesh'
         ) {
           child.material = child.material.clone();
           child.material.map = null;
-          child.material.color.set("#FF0000");
+          child.material.color.set('#5E3122');
           child.material.needsUpdate = true;
         }
 
-        if (child.name === "zipper_pull_pocket_0") {
+        if (child.name === 'zipper_pull_pocket_0') {
           setZipperMesh(child);
         }
       }
@@ -327,31 +316,61 @@ export function McmBag({
 
       {phase === 3 && (
         <>
-          {/* 오리지널 키링 */}
-          <Accessory
-            modelUrl="/models/original_keyring.glb"
-            handPosRef={handPosRef}
-            targetObject={zipperMesh}
-            initialFloatPosition={new THREE.Vector3(-0.15, -0.6, 0.5)}
-            attachmentOffset={[0.18, 0.24, 0.18]}
-            attachmentRotation={[0, Math.PI / 4, 0]}
-            scale={3.8}
-            attachSoundUrl="/sounds/original_sound.mp3"
-            onToggleAttach={handleToggleAttach}
-          />
+          {/* 오리지널 키링 (ID: 1) */}
+          <group
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              enter({ phase: 'PHASE3_STYLING', targetType: 'ACCESSORY', targetProductId: 1, gesture: 'PRESS' });
+            }}
+            onPointerUp={(e) => {
+              e.stopPropagation();
+              exit();
+            }}
+            onPointerOut={(e) => {
+              e.stopPropagation();
+              exit();
+            }}
+          >
+            <Accessory
+              modelUrl="/models/original_keyring.glb"
+              handPosRef={handPosRef}
+              targetObject={zipperMesh}
+              initialFloatPosition={new THREE.Vector3(-0.3, -0.6, 0.5)}
+              attachmentOffset={[0.18, 0.24, 0.18]}
+              attachmentRotation={[0, Math.PI / 4, 0]}
+              scale={3.8}
+              attachSoundUrl="/sounds/original_sound.mp3"
+              onToggleAttach={handleToggleAttach}
+            />
+          </group>
 
-          {/* 테디베어 키링 */}
-          <Accessory
-            modelUrl="/models/teddy_keyring.glb"
-            handPosRef={handPosRef}
-            targetObject={zipperMesh}
-            initialFloatPosition={new THREE.Vector3(0.15, -0.6, 0.5)}
-            attachmentOffset={[0.18, 0.24, 0.18]}
-            attachmentRotation={[0, -Math.PI / 2, 0]}
-            scale={3.8}
-            attachSoundUrl="/sounds/teddy_sound.mp3"
-            onToggleAttach={handleToggleAttach}
-          />
+          {/* 테디베어 키링 (ID: 2) */}
+          <group
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              enter({ phase: 'PHASE3_STYLING', targetType: 'ACCESSORY', targetProductId: 2, gesture: 'PRESS' });
+            }}
+            onPointerUp={(e) => {
+              e.stopPropagation();
+              exit();
+            }}
+            onPointerOut={(e) => {
+              e.stopPropagation();
+              exit();
+            }}
+          >
+            <Accessory
+              modelUrl="/models/teddy_keyring.glb"
+              handPosRef={handPosRef}
+              targetObject={zipperMesh}
+              initialFloatPosition={new THREE.Vector3(0.3, -0.6, 0.5)}
+              attachmentOffset={[0.18, 0.24, 0.18]}
+              attachmentRotation={[0, -Math.PI / 2, 0]}
+              scale={3.8}
+              attachSoundUrl="/sounds/teddy_sound.mp3"
+              onToggleAttach={handleToggleAttach}
+            />
+          </group>
         </>
       )}
     </group>
