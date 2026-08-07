@@ -9,8 +9,8 @@ const BAG_MODEL_URL = '/models/mcm_final_8.glb';
 const TEXTURE_URLS = {
   street: '/textures/romantic_pattern.png',
   romantic: '/textures/romantic_pattern.png',
-  classic: '/textures/street_pattern.png',
-  minimal: '/textures/street_pattern.png',
+  classic: '/textures/classic_pattern.png',
+  minimal: '/textures/minimal_pattern.png',
   logo_g: '/textures/logo_g.png',
   logo_r: '/textures/logo_r.png',
 };
