@@ -1,3 +1,4 @@
+import { useInteractionRecorder } from '../../hooks/useInteractionRecorder';
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Accessory } from "./Accessory";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -38,8 +39,9 @@ export function McmBag({
   const bagGroupRef = useRef();
   const currentRotation = phase === 3 ? [0, 0, 0] : rotation;
   const [isBagTilted, setIsBagTilted] = useState(false);
-
   const tiltTimeoutRef = useRef(null);
+  
+  const { markOrigin, enter, exit, flush } = useInteractionRecorder('test-123');
 
   const handleToggleAttach = (attached) => {
     if (attached) {
@@ -55,14 +57,19 @@ export function McmBag({
     }
   };
 
-  useEffect(() => {
+ useEffect(() => {
+    markOrigin(); // 시작 시간 기록
+
     // 20초 뒤 Phase 3 전환
-    const timer = setTimeout(() => {
-      setPhase(3);
+    const timer = setTimeout(async () => { 
       console.log("Phase 3 시작: 가방 인터랙션 종료, 악세서리 등장!");
-    }, 20000);
-    return () => clearTimeout(timer);
-  }, []);
+      
+      await flush(); 
+      
+      setPhase(3);
+    }, 20000); 
+    return () => clearTimeout(timer); 
+  }, [flush, markOrigin]);
 
   useEffect(() => {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -209,11 +216,22 @@ export function McmBag({
             lastHoveredCategory.current = category;
             playSound(category);
           }
+          
+          console.log("현재 터치 중인 부위:", hitName);
+          enter({
+            phase: 'PHASE2_HAPTIC',
+            targetType: 'BAG_PART',
+            targetPart: hitName, 
+            gesture: 'HOVER'
+          });
+
         } else {
           resetVisualEffect();
+          exit();
         }
       } else {
         resetVisualEffect();
+        exit();
       }
     }
     // Phase 3: 가방 정면 복구 및 기존 효과 끄기
@@ -294,7 +312,7 @@ export function McmBag({
   return (
     <group>
       <group ref={bagGroupRef} rotation={currentRotation}>
-        <primitive object={scene} scale={1.5} />
+        <primitive object={scene} scale={3.8} />
       </group>
 
       <mesh ref={shadowMeshRef} visible={false}>
@@ -317,7 +335,7 @@ export function McmBag({
             initialFloatPosition={new THREE.Vector3(-0.15, -0.6, 0.5)}
             attachmentOffset={[0.18, 0.24, 0.18]}
             attachmentRotation={[0, Math.PI / 4, 0]}
-            scale={1.5}
+            scale={3.8}
             attachSoundUrl="/sounds/original_sound.mp3"
             onToggleAttach={handleToggleAttach}
           />
@@ -330,7 +348,7 @@ export function McmBag({
             initialFloatPosition={new THREE.Vector3(0.15, -0.6, 0.5)}
             attachmentOffset={[0.18, 0.24, 0.18]}
             attachmentRotation={[0, -Math.PI / 2, 0]}
-            scale={1.5}
+            scale={3.8}
             attachSoundUrl="/sounds/teddy_sound.mp3"
             onToggleAttach={handleToggleAttach}
           />
