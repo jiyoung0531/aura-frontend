@@ -68,7 +68,7 @@ const createParticleField = (width, height, count = 270) => {
 const drawParticleField = (context, width, height, particles, time) => {
   if (!particles?.length) return;
 
-  const centerX = width / 2;
+  const centerX = width * 0.25;
   const centerY = height / 2;
   const progress = Math.min(1, time / 12000);
 
@@ -109,7 +109,7 @@ export default function App() {
     x: 0,
     y: 0,
     visible: false,
-    size: 1,
+    width: 170,
   });
   const fistPhotoSrc = "/rock2.png";
   const [route, setRoute] = useState(window.location.pathname || "/");
@@ -123,6 +123,7 @@ export default function App() {
   const handPosRef = useRef({ x: 0, y: 0 });
   const hoveredMaterialRef = useRef(null); // 가방에서 터치된 재질 이름
   const cursorRef = useRef({ x: null, y: null }); // 커서 속도 변조용
+  const fistConfidenceRef = useRef(0);
   const particleStateRef = useRef(null);
 
   const showBagScene = route === "/" || route === "/bag";
@@ -190,13 +191,15 @@ export default function App() {
         };
       }
 
-      drawParticleField(
-        context,
-        canvas.clientWidth,
-        canvas.clientHeight,
-        particleStateRef.current.particles,
-        performance.now(),
-      );
+      if (showCameraPage) {
+        drawParticleField(
+          context,
+          canvas.clientWidth,
+          canvas.clientHeight,
+          particleStateRef.current.particles,
+          performance.now(),
+        );
+      }
 
       const landmarks = results.landmarks?.[0];
       if (landmarks?.length) {
@@ -227,17 +230,6 @@ export default function App() {
             landmarks[16],
             landmarks[20],
           ].filter(Boolean);
-          const isFist =
-            fingerTips.length === 5 &&
-            fingerTips.every((point) => {
-              const dx = point.x - rawX;
-              const dy = point.y - rawY;
-              return Math.hypot(dx, dy) < 0.18;
-            });
-          // debug: log fist detection
-          // eslint-disable-next-line no-console
-          console.log("App: isFist=", isFist, "fingerTipsCount=", fingerTips.length);
-
           const palmWidth = landmarks[5] && landmarks[17]
             ? Math.hypot(landmarks[5].x - landmarks[17].x, landmarks[5].y - landmarks[17].y)
             : 0.18;
@@ -245,6 +237,26 @@ export default function App() {
             ? Math.hypot(landmarks[0].x - landmarks[9].x, landmarks[0].y - landmarks[9].y)
             : 0.18;
           const handSize = Math.max(palmWidth, wristToMiddle, 0.08);
+          const fistThreshold = Math.min(0.32, Math.max(0.16, handSize * 0.9));
+          const rawFist =
+            fingerTips.length === 5 &&
+            fingerTips.every((point) => {
+              const dx = point.x - rawX;
+              const dy = point.y - rawY;
+              return Math.hypot(dx, dy) < fistThreshold;
+            });
+          const fistDelta = rawFist ? 0.16 : -0.08;
+          fistConfidenceRef.current = Math.min(1, Math.max(0, fistConfidenceRef.current + fistDelta));
+          const isFist = fistConfidenceRef.current >= 0.5;
+          // debug: log fist detection
+          // eslint-disable-next-line no-console
+          console.log(
+            'App: rawFist=', rawFist,
+            'isFist=', isFist,
+            'confidence=', fistConfidenceRef.current.toFixed(2),
+            'fingerTipsCount=', fingerTips.length,
+            'threshold=', fistThreshold.toFixed(3),
+          );
 
           const x = offsetX + (1 - rawX) * drawWidth;
           const y = offsetY + rawY * drawHeight;
@@ -301,11 +313,17 @@ export default function App() {
             handSize,
           };
 
+          const dynamicWidth = Math.max(
+            110,
+            Math.min(230, 260 - handSize * 600),
+          );
+
           setIsFistState(isFist);
           setHandImagePos({
             x: cursorRef.current.x,
             y: cursorRef.current.y,
             visible: true,
+            width: isFist ? Math.max(100, dynamicWidth * 0.85) : dynamicWidth,
           });
 
           const rect = canvas.getBoundingClientRect();
@@ -466,7 +484,7 @@ export default function App() {
         handLandmarker.close();
       }
     };
-  }, [showCamera]);
+  }, [showCamera, showCameraPage]);
 
   return (
     <div className="app-shell">
@@ -495,7 +513,7 @@ export default function App() {
               left: `${handImagePos.x}px`,
               top: `${handImagePos.y}px`,
               opacity: handImagePos.visible ? 1 : 0,
-              width: isFistState ? "110px" : "170px",
+              width: `${handImagePos.width}px`,
             }}
           />
         </div>
