@@ -126,12 +126,198 @@
   opacity: 0.95;
   background: #000;
   border-radius: 20px;
-  filter: saturate(1.2) contrast(1.08);
+  filter: brightness(0.65) saturate(1.2) contrast(1.08);
 }
 
 .tracking-canvas {
   z-index: 1;
   pointer-events: none;
+}
+
+.camera-bag-reveal {
+  position: absolute;
+  left: 75%;
+  top: 50%;
+  z-index: 1;
+  width: min(11.33vw, 143px);
+  max-height: 72vh;
+  object-fit: contain;
+  opacity: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 24px 36px rgba(0, 0, 0, 0.38));
+  transform: translate(-50%, -50%) scale(0.02);
+  animation: reveal-camera-bag 2s cubic-bezier(0.22, 1, 0.36, 1) 4s forwards;
+  will-change: opacity, transform;
+}
+
+.camera-panel.fullscreen .tracking-canvas {
+  z-index: 2;
+}
+
+.camera-ui-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  color: #b08d57;
+  font-family: Pretendard, "Noto Sans KR", sans-serif;
+}
+
+.camera-corner {
+  position: absolute;
+  width: clamp(24px, 2.45vw, 35px);
+  height: clamp(24px, 2.45vw, 35px);
+}
+
+.camera-corner-top-left,
+.camera-corner-bottom-left {
+  left: clamp(24px, 5.55vw, 80px);
+}
+
+.camera-corner-top-right,
+.camera-corner-bottom-right {
+  right: clamp(24px, 5.55vw, 80px);
+}
+
+.camera-corner-top-left,
+.camera-corner-top-right {
+  top: clamp(24px, 5.1vh, 61px);
+}
+
+.camera-corner-top-right {
+  transform: scaleX(-1);
+}
+
+.camera-corner-bottom-left,
+.camera-corner-bottom-right {
+  bottom: clamp(24px, 4.15vh, 50px);
+}
+
+.camera-corner-bottom-left {
+  transform: scaleY(-1);
+}
+
+.camera-corner-bottom-right {
+  transform: rotate(180deg);
+}
+
+.camera-aura-logo {
+  position: absolute;
+  top: clamp(42px, 6.25vh, 75px);
+  left: 50%;
+  width: clamp(78px, 6.6vw, 95px);
+  height: auto;
+  transform: translateX(-50%);
+}
+
+.camera-progress {
+  position: absolute;
+  top: clamp(112px, 12.25vh, 147px);
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: clamp(7px, 0.75vw, 11px);
+  transform: translateX(-50%);
+}
+
+.camera-progress > img {
+  width: clamp(20px, 1.75vw, 25px);
+  height: auto;
+}
+
+.camera-progress-step {
+  display: grid;
+  width: clamp(34px, 2.85vw, 41px);
+  height: clamp(34px, 2.85vw, 41px);
+  place-items: center;
+  box-sizing: border-box;
+  border: 2px solid #f3ede3;
+  border-radius: 50%;
+  background: #fff;
+  color: #b08d57;
+  font-size: clamp(16px, 1.4vw, 20px);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.camera-progress-step.active {
+  border-color: #b08d57;
+  background: #b08d57;
+  color: #fff;
+}
+
+.camera-mcm-logo {
+  position: absolute;
+  bottom: clamp(32px, 5.05vh, 61px);
+  left: 50%;
+  width: clamp(44px, 3.75vw, 54px);
+  height: auto;
+  transform: translateX(-50%);
+}
+
+.camera-reach-prompt {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(100px, 15vh, 180px);
+  z-index: 4;
+  display: grid;
+  width: min(74vw, 532px);
+  height: clamp(64px, 6.5vw, 78px);
+  place-items: center;
+  box-sizing: border-box;
+  border-radius: clamp(18px, 1.6vw, 23px);
+  background: rgba(243, 237, 227, 0.73);
+  color: #111;
+  font-family: Pretendard, "Noto Sans KR", sans-serif;
+  font-size: clamp(24px, 2.5vw, 36px);
+  font-weight: 400;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: show-camera-prompt 0.25s ease-out both;
+}
+
+@keyframes show-camera-prompt {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (max-height: 600px) {
+  .camera-aura-logo {
+    top: 22px;
+  }
+
+  .camera-progress {
+    top: 68px;
+  }
+
+  .camera-mcm-logo {
+    bottom: 18px;
+  }
+
+  .camera-reach-prompt {
+    bottom: 70px;
+  }
+}
+
+@keyframes reveal-camera-bag {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.02);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 .status-pill {
