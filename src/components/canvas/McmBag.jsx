@@ -336,7 +336,7 @@ export function McmBag({
               handPosRef={handPosRef}
               targetObject={zipperMesh}
               initialFloatPosition={new THREE.Vector3(-0.3, -0.6, 0.5)}
-              attachmentOffset={[0.18, 0.24, 0.18]}
+              attachmentOffset={[0.44, 0.59, 0.46]}
               attachmentRotation={[0, Math.PI / 4, 0]}
               scale={3.8}
               attachSoundUrl="/sounds/original_sound.mp3"
@@ -364,7 +364,7 @@ export function McmBag({
               handPosRef={handPosRef}
               targetObject={zipperMesh}
               initialFloatPosition={new THREE.Vector3(0.3, -0.6, 0.5)}
-              attachmentOffset={[0.18, 0.24, 0.18]}
+              attachmentOffset={[0.44, 0.59, 0.46]}
               attachmentRotation={[0, -Math.PI / 2, 0]}
               scale={3.8}
               attachSoundUrl="/sounds/teddy_sound.mp3"
