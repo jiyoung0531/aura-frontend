@@ -5,6 +5,9 @@ import { McmBag } from "./components/canvas/McmBag";
 import CameraScreen from "./components/CameraScreen";
 import "./App.css";
 
+const INITIAL_BAG_YAW = Math.PI / 12;
+const INITIAL_BAG_PITCH = 0;
+
 const getDisplayMetrics = (videoElement, canvasElement) => {
   const displayWidth = canvasElement.clientWidth || window.innerWidth;
   const displayHeight = canvasElement.clientHeight || window.innerHeight;
@@ -29,24 +32,7 @@ const getDisplayMetrics = (videoElement, canvasElement) => {
   };
 };
 
-const drawAuraCursor = (context, x, y) => {
-  const glow = context.createRadialGradient(x, y, 2, x, y, 64);
-  glow.addColorStop(0, "rgba(255, 255, 255, 0.95)");
-  glow.addColorStop(0.45, "rgba(255, 255, 255, 0.12)");
-  glow.addColorStop(1, "rgba(255, 255, 255, 0)");
-
-  context.save();
-  context.globalCompositeOperation = "screen";
-  context.beginPath();
-  context.arc(x, y, 64, 0, Math.PI * 2);
-  context.fillStyle = glow;
-  context.fill();
-  context.restore();
-};
-
 const createParticleField = (width, height, count = 270) => {
-  const centerX = width / 2;
-  const centerY = height / 2;
   const maxRadius = Math.max(width, height) * 0.38;
 
   return Array.from({ length: count }, (_, index) => {
@@ -72,12 +58,14 @@ const drawParticleField = (context, width, height, particles, time) => {
   const centerY = height / 2;
   const progress = Math.min(1, time / 12000);
 
+  if (time >= 6000) return;
+
   context.save();
   context.globalCompositeOperation = "screen";
 
   particles.forEach((particle, index) => {
     particle.angle += particle.angularSpeed;
-    particle.radius *= particle.radiusDecay;
+    particle.radius *= Math.pow(particle.radiusDecay, 1.8);
 
     const swirlRadius = particle.radius *
       (0.88 + 0.12 * Math.sin(time * 0.001 + particle.phase + index * 0.018));
@@ -113,24 +101,23 @@ export default function App() {
   });
   const fistPhotoSrc = "/rock2.png";
   const [route, setRoute] = useState(window.location.pathname || "/");
-  const [permissionError, setPermissionError] = useState(false);
-  const [errorDetails, setErrorDetails] = useState("");
-  const initialBagYaw = Math.PI / 12;
-  const initialBagPitch = 0;
-  const [bagYaw, setBagYaw] = useState(initialBagYaw);
-  const [bagPitch, setBagPitch] = useState(initialBagPitch);
+  const [bagYaw, setBagYaw] = useState(INITIAL_BAG_YAW);
+  const [bagPitch, setBagPitch] = useState(INITIAL_BAG_PITCH);
 
   const handPosRef = useRef({ x: 0, y: 0 });
   const hoveredMaterialRef = useRef(null); // 가방에서 터치된 재질 이름
   const cursorRef = useRef({ x: null, y: null }); // 커서 속도 변조용
   const fistConfidenceRef = useRef(0);
+  const openHandStartedAtRef = useRef(null);
+  const showReachPromptRef = useRef(false);
+  const navigationTriggeredRef = useRef(false);
   const particleStateRef = useRef(null);
+  const [showReachPrompt, setShowReachPrompt] = useState(false);
 
   const showBagScene = route === "/" || route === "/bag";
   const showBagOverlay = route === "/bag";
   const showCameraPage = route === "/camera";
   const showCamera = showBagOverlay || showCameraPage;
-  const showGlowOverlay = showBagOverlay;
   const mirrorCamera = showCameraPage;
 
   useEffect(() => {
@@ -138,6 +125,30 @@ export default function App() {
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
+
+  useEffect(() => {
+    showReachPromptRef.current = false;
+    navigationTriggeredRef.current = false;
+    openHandStartedAtRef.current = null;
+
+    const resetTimer = window.setTimeout(() => {
+      setShowReachPrompt(false);
+    }, 0);
+
+    if (!showCameraPage) {
+      return () => window.clearTimeout(resetTimer);
+    }
+
+    const timer = window.setTimeout(() => {
+      showReachPromptRef.current = true;
+      setShowReachPrompt(true);
+    }, 6000);
+
+    return () => {
+      window.clearTimeout(resetTimer);
+      window.clearTimeout(timer);
+    };
+  }, [showCameraPage]);
 
   useEffect(() => {
     if (!showCamera) {
@@ -168,6 +179,7 @@ export default function App() {
       const nextHeight = height || window.innerHeight;
       particleStateRef.current = {
         particles: createParticleField(nextWidth, nextHeight, 140),
+        startedAt: performance.now(),
       };
     };
 
@@ -188,6 +200,7 @@ export default function App() {
       if (!particleStateRef.current?.particles?.length) {
         particleStateRef.current = {
           particles: createParticleField(canvas.clientWidth, canvas.clientHeight, 140),
+          startedAt: performance.now(),
         };
       }
 
@@ -197,7 +210,7 @@ export default function App() {
           canvas.clientWidth,
           canvas.clientHeight,
           particleStateRef.current.particles,
-          performance.now(),
+          performance.now() - particleStateRef.current.startedAt,
         );
       }
 
@@ -248,8 +261,35 @@ export default function App() {
           const fistDelta = rawFist ? 0.16 : -0.08;
           fistConfidenceRef.current = Math.min(1, Math.max(0, fistConfidenceRef.current + fistDelta));
           const isFist = fistConfidenceRef.current >= 0.5;
+          const extendedFingerCount = fingerTips.slice(1).filter((point) => {
+              const dx = point.x - rawX;
+              const dy = point.y - rawY;
+              return Math.hypot(dx, dy) > handSize * 0.9;
+            }).length;
+          const openHand = fingerTips.length === 5 && extendedFingerCount >= 3;
+
+          if (showReachPromptRef.current) {
+            if (openHand && !isFist) {
+              if (openHandStartedAtRef.current === null) {
+                openHandStartedAtRef.current = performance.now();
+              }
+            } else {
+              openHandStartedAtRef.current = null;
+            }
+
+            if (
+              openHandStartedAtRef.current !== null &&
+              performance.now() - openHandStartedAtRef.current >= 2000 &&
+              !navigationTriggeredRef.current
+            ) {
+              navigationTriggeredRef.current = true;
+              showReachPromptRef.current = false;
+              setShowReachPrompt(false);
+              window.history.pushState({}, "", "/bag");
+              setRoute("/bag");
+            }
+          }
           // debug: log fist detection
-          // eslint-disable-next-line no-console
           console.log(
             'App: rawFist=', rawFist,
             'isFist=', isFist,
@@ -345,8 +385,8 @@ export default function App() {
               setBagYaw(yawFromX);
               setBagPitch(pitchFromY);
             } else {
-              setBagYaw((prev) => prev + (initialBagYaw - prev) * 0.12);
-              setBagPitch((prev) => prev + (initialBagPitch - prev) * 0.12);
+              setBagYaw((prev) => prev + (INITIAL_BAG_YAW - prev) * 0.12);
+              setBagPitch((prev) => prev + (INITIAL_BAG_PITCH - prev) * 0.12);
             }
           }
 
@@ -386,14 +426,13 @@ export default function App() {
       }
 
       setHandImagePos((prev) => ({ ...prev, visible: false }));
+      openHandStartedAtRef.current = null;
       setIsTracking(false);
     };
 
     const initializeHands = async () => {
       if (!navigator.mediaDevices?.getUserMedia) {
         const message = "이 브라우저는 getUserMedia를 지원하지 않습니다.";
-        setPermissionError(true);
-        setErrorDetails(message);
         setStatusText(message);
         return;
       }
@@ -459,8 +498,6 @@ export default function App() {
         const name = error?.name || "UnknownError";
         const message = error?.message || "알 수 없는 카메라 오류";
         console.error("Camera error:", { name, message });
-        setPermissionError(true);
-        setErrorDetails(`${name}: ${message}`);
         setStatusText(
           "카메라 권한이 차단됐어요. 브라우저 주소창의 카메라 권한을 허용한 뒤 새로고침해 주세요.",
         );
@@ -484,7 +521,7 @@ export default function App() {
         handLandmarker.close();
       }
     };
-  }, [showCamera, showCameraPage]);
+  }, [showBagOverlay, showCamera, showCameraPage]);
 
   return (
     <div className="app-shell">
@@ -527,9 +564,11 @@ export default function App() {
         hideVideo={showBagOverlay}
         overlay={showBagOverlay}
         mirror={mirrorCamera}
+        showBagReveal={showCameraPage}
+        showReachPrompt={showCameraPage && showReachPrompt}
       />
 
-      {showCamera && (
+      {showCamera && !showCameraPage && (
         <div className="status-pill">
           <span className={`status-dot ${isTracking ? "active" : ""}`} />
           <span>{isTracking ? "Aura Hand 추적 중" : statusText}</span>
