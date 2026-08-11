@@ -4,8 +4,7 @@
   height: 100vh;
   overflow: hidden;
   /*전체 배경 색 조절*/
-  /* background: linear-gradient(135deg, #020617 0%, #111827 100%);*/
-  background: linear-gradient(135deg, #c4c8db 0%, #6c84ba 100%);
+  background: linear-gradient(to bottom, #714C38, #4F3B30);
 }
 
 .scene-layer {
@@ -14,9 +13,7 @@
   width: 100%;
   height: 100%;
   z-index: 1;
-  transition:
-    filter 0.4s ease,
-    transform 0.4s ease;
+  transition: none;
 }
 
 .hand-image-overlay {
@@ -350,4 +347,119 @@
 .status-dot.active {
   background: #34d399;
   box-shadow: 0 0 0 6px rgba(52, 211, 153, 0.12);
+}
+
+.phase-ui-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 999;
+  box-sizing: border-box;
+}
+
+/* 상단 영역 */
+.top-banner {
+  position: absolute;
+  top: 45px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px; 
+}
+
+.aura-logo {
+  width: 54px; 
+  height: auto;
+}
+
+.stepper-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+
+.step-item {
+  width: 19px;  
+  height: 19px;
+  object-fit: contain;
+}
+
+.step-progress {
+  width: 12px; 
+  height: auto;
+  object-fit: contain;
+  display: inline-flex;
+  align-items: center;
+  transform: translateY(0px); /
+}
+
+.phase3-content {
+  position: absolute;
+  top: 105px; 
+  left: 36px; 
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  z-index: 5;
+}
+
+.phase3-title {
+  text-align: left;
+  color: #fff;
+}
+
+.phase3-title h2 {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0 0 0.3px 0;
+}
+
+.phase3-title p {
+  font-size: 11px;
+  opacity: 0.8;
+  margin: 0;
+}
+
+.bottom-banner {
+  position: absolute;
+  bottom: 35px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px; 
+  width: 100%;
+  z-index: 100;
+}
+
+.complete-btn {
+  width: 280px;
+  padding: 13px;
+  background-color: #f5f0eb;
+  border: none;
+  border-radius: 20px;
+  font-size: 15px;
+  font-weight: bold;
+  color: #333;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  pointer-events: auto;
+}
+
+.mcm-logo {
+  width: 38px;
+  height: auto;
+  opacity: 0.85;
+}
+
+.status-pill {
+  display: none !important;
 }
