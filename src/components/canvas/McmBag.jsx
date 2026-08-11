@@ -7,7 +7,8 @@ import { useInteractionRecorder } from '../../hooks/useInteractionRecorder';
 
 const BAG_MODEL_URL = '/models/mcm_final_8.glb';
 const TEXTURE_URLS = {
-  street: '/textures/romantic_pattern.png',
+  mcm: "/textures/mcm_pattern.png",
+  street: '/textures/street_pattern.png',
   romantic: '/textures/romantic_pattern.png',
   classic: '/textures/classic_pattern.png',
   minimal: '/textures/minimal_pattern.png',
@@ -249,7 +250,9 @@ export function McmBag({
     }
   });
 
-  const selectedTexture = textures[currentMood];
+  // 텍스처 설정
+  const activeMood = phase === 2 ? 'mcm' : currentMood;
+  const selectedTexture = textures[activeMood];
   if (selectedTexture) {
     selectedTexture.flipY = false;
     selectedTexture.wrapS = THREE.RepeatWrapping;
@@ -270,7 +273,8 @@ export function McmBag({
         if (child.material.name === 'bag') {
           if (child.name === 'bag_mesh' || child.name === 'side_panel_mesh') {
             child.material.map = selectedTexture;
-            child.material.color.set('#412D15');
+            //child.material.color.set('#412D15');
+            child.material.color.set('#ffffff');
             if (child.material.normalMap) child.material.normalScale.set(2, 2);
             child.material.needsUpdate = true;
           }
@@ -296,12 +300,15 @@ export function McmBag({
         }
       }
     });
-  }, [scene, textures, currentMood]);
+  }, [scene, textures, currentMood, phase]);
+
+  const bagScale = phase === 3 ? 3.4 : 5.9;
+  const bagPosition = phase === 3 ? [0, -0.38, 0] : [0, -1.3, 0];
 
   return (
     <group>
       <group ref={bagGroupRef} rotation={currentRotation}>
-        <primitive object={scene} scale={3.8} />
+        <primitive object={scene} scale={bagScale} position={bagPosition} />
       </group>
 
       <mesh ref={shadowMeshRef} visible={false}>
@@ -335,10 +342,10 @@ export function McmBag({
               modelUrl="/models/original_keyring.glb"
               handPosRef={handPosRef}
               targetObject={zipperMesh}
-              initialFloatPosition={new THREE.Vector3(-0.3, -0.6, 0.5)}
-              attachmentOffset={[0.44, 0.59, 0.46]}
+              initialFloatPosition={new THREE.Vector3(-0.3, -0.52, 0.5)}
+              attachmentOffset={[0.38, 0.56, 0.43]}
               attachmentRotation={[0, Math.PI / 4, 0]}
-              scale={3.8}
+              scale={3.5}
               attachSoundUrl="/sounds/original_sound.mp3"
               onToggleAttach={handleToggleAttach}
             />
@@ -363,10 +370,10 @@ export function McmBag({
               modelUrl="/models/teddy_keyring.glb"
               handPosRef={handPosRef}
               targetObject={zipperMesh}
-              initialFloatPosition={new THREE.Vector3(0.3, -0.6, 0.5)}
-              attachmentOffset={[0.44, 0.59, 0.46]}
+              initialFloatPosition={new THREE.Vector3(0.3, -0.52, 0.5)}
+              attachmentOffset={[0.38, 0.56, 0.43]}
               attachmentRotation={[0, -Math.PI / 2, 0]}
-              scale={3.8}
+              scale={3.5}
               attachSoundUrl="/sounds/teddy_sound.mp3"
               onToggleAttach={handleToggleAttach}
             />

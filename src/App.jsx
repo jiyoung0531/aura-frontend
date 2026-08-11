@@ -4,6 +4,7 @@ import { OrbitControls } from "@react-three/drei";
 import { McmBag } from "./components/canvas/McmBag";
 import CameraScreen from "./components/CameraScreen";
 import "./App.css";
+import PhaseOverlay from "./components/ui/PhaseOverlay";
 
 const INITIAL_BAG_YAW = Math.PI / 12;
 const INITIAL_BAG_PITCH = 0;
@@ -103,6 +104,17 @@ export default function App() {
   const [route, setRoute] = useState(window.location.pathname || "/");
   const [bagYaw, setBagYaw] = useState(INITIAL_BAG_YAW);
   const [bagPitch, setBagPitch] = useState(INITIAL_BAG_PITCH);
+  const [phase, setPhase] = useState(2);
+
+  useEffect(() => {
+    if (phase === 2) {
+      const timer = setTimeout(() => {
+        setPhase(3);
+      }, 20000);
+
+      return () => clearTimeout(timer); 
+    }
+  }, [phase]);
 
   const handPosRef = useRef({ x: 0, y: 0 });
   const hoveredMaterialRef = useRef(null); // 가방에서 터치된 재질 이름
@@ -542,6 +554,7 @@ export default function App() {
 
             <OrbitControls />
           </Canvas>
+          <PhaseOverlay phase={phase} />
           <img
             src={isFistState ? fistPhotoSrc : "/hand2.png"}
             alt="Hand overlay"
