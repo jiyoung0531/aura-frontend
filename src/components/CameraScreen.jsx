@@ -10,7 +10,8 @@ export default function CameraScreen({
   showReachPrompt,
   auraResult,
 }) {
-  const showAnalysis = cameraPhase === "analysis";
+  const showAnalysis = cameraPhase === "result";
+  const showScanStatus = cameraPhase === "scanning" || cameraPhase === "complete";
   const showBagReveal = cameraPhase === "particles" || cameraPhase === "reach";
 
   return (
@@ -57,13 +58,15 @@ export default function CameraScreen({
 
           <img src="/aura-logo.svg" alt="" className="camera-aura-logo" />
 
-          <div className="camera-progress">
-            <span className="camera-progress-step active">1</span>
-            <img src="/aura-progress-gold.svg" alt="" />
-            <span className="camera-progress-step">2</span>
-            <img src="/aura-progress-white.svg" alt="" />
-            <span className="camera-progress-step">3</span>
-          </div>
+          {!showScanStatus && (
+            <div className="camera-progress">
+              <span className="camera-progress-step active">1</span>
+              <img src="/aura-progress-gold.svg" alt="" />
+              <span className="camera-progress-step">2</span>
+              <img src="/aura-progress-white.svg" alt="" />
+              <span className="camera-progress-step">3</span>
+            </div>
+          )}
 
           <img src="/mcm-logo.svg" alt="" className="camera-mcm-logo" />
 
@@ -75,25 +78,51 @@ export default function CameraScreen({
                 <b>{auraResult.matchPercentage}%</b>
               </div>
               <div className="camera-color-card">
-                <span>AURA color</span>
-                {auraResult.palette.map((color) =>
-                  color.imageSrc ? (
-                    <img
-                      key={color.id}
-                      src={color.imageSrc}
-                      alt={color.label}
-                    />
-                  ) : (
-                    <i
-                      key={color.id}
-                      className="camera-color-swatch"
-                      style={{ backgroundColor: color.color }}
-                      title={color.label}
-                    />
-                  ),
-                )}
+                <span className="camera-color-title">AURA color</span>
+                <div className="camera-color-list">
+                  {auraResult.palette.map((color) =>
+                    color.imageSrc ? (
+                      <img
+                        key={color.id}
+                        className="camera-color-item"
+                        src={color.imageSrc}
+                        alt={color.label}
+                      />
+                    ) : (
+                      <i
+                        key={color.id}
+                        className="camera-color-item camera-color-swatch"
+                        style={{ backgroundColor: color.color }}
+                        title={color.label}
+                      />
+                    ),
+                  )}
+                </div>
               </div>
             </>
+          )}
+
+          {showScanStatus && (
+            <div className="camera-analysis-status">
+              <p>
+                {cameraPhase === "scanning"
+                  ? "Analyzing Your Data..."
+                  : "Analyzing Complete"}
+              </p>
+              {cameraPhase === "scanning" ? (
+                <img
+                  src="/aura-analysis-spinner.svg"
+                  alt=""
+                  className="camera-analysis-spinner"
+                />
+              ) : (
+                <span className="camera-analysis-complete">
+                  <img src="/aura-analysis-complete-ring.svg" alt="" />
+                  <img src="/aura-analysis-check.svg" alt="" />
+                </span>
+              )}
+              <div className="camera-facing-prompt">정면을 바라봐 주세요</div>
+            </div>
           )}
         </div>
       )}
