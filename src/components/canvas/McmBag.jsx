@@ -1,80 +1,385 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGLTF, useTexture } from '@react-three/drei';
+import { Accessory } from './Accessory';
+import { useInteractionRecorder } from '../../hooks/useInteractionRecorder';
 
-const BAG_MODEL_URL = '/models/mcm_bag.glb';
+const BAG_MODEL_URL = '/models/mcm_final_8.glb';
 const TEXTURE_URLS = {
-  //무드 구분
-  street: '/textures/street_pattern.png', 
-  romantic: '/textures/street_pattern.png',
-  classic: '/textures/street_pattern.png',
-  minimal: '/textures/street_pattern.png',
-  // 로고 이미지
-  logo: '/textures/street_pattern.png', 
+  mcm: "/textures/mcm_pattern.png",
+  street: '/textures/street_pattern.png',
+  romantic: '/textures/romantic_pattern.png',
+  classic: '/textures/classic_pattern.png',
+  minimal: '/textures/minimal_pattern.png',
+  logo_g: '/textures/logo_g.png',
+  logo_r: '/textures/logo_r.png',
 };
 
-export function McmBag({ currentMood = 'street' }) {
-  // 가방 모델 불러오기
+const resolvePartName = (meshName) => {
+  const name = meshName.toLowerCase();
+  if (name.includes('zip')) return 'ZIPPER_LINE';
+  if (name.includes('logo') || name.includes('stud')) return 'LOGO_STUD';
+  if (name.includes('strap') || name.includes('buckle') || name.includes('handle') || name.includes('hardware')) return 'STRAP_BUCKLE';
+  return 'BISETOS_LEATHER';
+};
+
+export function McmBag({
+  currentMood = 'street',
+  rotation = [0, Math.PI / 12, 0],
+  handPosRef,
+  setHoveredMaterial,
+}) {
   const { scene } = useGLTF(BAG_MODEL_URL);
-
-  // 무드별 2D 텍스처 불러오기
   const textures = useTexture(TEXTURE_URLS);
+  const { camera, raycaster, size } = useThree();
 
-  // 패턴용 텍스처 설정 
-  const selectedTexture = textures[currentMood];
-  if (selectedTexture) {
-    selectedTexture.flipY = false; 
+  const lastHoveredCategory = useRef(null);
+  const shadowMeshRef = useRef(null);
+  const audioCtxRef = useRef(null);
+  const audioBuffers = useRef({});
+  const activeSources = useRef({});
+
+  const lastHitPoint = useRef(new THREE.Vector3());
+  const currentPlaybackRate = useRef(1.0);
+
+  const [phase, setPhase] = useState(2);
+  const [zipperMesh, setZipperMesh] = useState(null);
+  const bagGroupRef = useRef();
+  const currentRotation = phase === 3 ? [0, 0, 0] : rotation;
+  const [isBagTilted, setIsBagTilted] = useState(false);
+  const tiltTimeoutRef = useRef(null);
+
+  // 이벤트 트래킹 훅 연결
+  const { markOrigin, enter, exit, addRotation, flush } = useInteractionRecorder('test-123');
+  const prevRotY = useRef(rotation[1]);
+
+  const handleToggleAttach = (attached) => {
+    if (attached) {
+      setTimeout(() => {
+        setIsBagTilted(true);
+        if (tiltTimeoutRef.current) clearTimeout(tiltTimeoutRef.current);
+        tiltTimeoutRef.current = setTimeout(() => setIsBagTilted(false), 400);
+      }, 0);
+    } else {
+      setTimeout(() => setIsBagTilted(false), 0);
+    }
+  };
+
+  useEffect(() => {
+    markOrigin(); 
+
+    const timer = setTimeout(async () => {
+      console.log("Phase 3 시작: 가방 인터랙션 종료, 악세서리 등장!");
+      await flush();
+      setPhase(3);
+    }, 20000);
     
-    // 패턴을 바둑판처럼 반복
+    return () => clearTimeout(timer);
+  }, [flush, markOrigin]);
+
+  useEffect(() => {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    audioCtxRef.current = new AudioContext();
+
+    const loadSound = async (key, url) => {
+      try {
+        const response = await fetch(url);
+        if (!response.ok) return;
+        const arrayBuffer = await response.arrayBuffer();
+        const audioBuffer = await audioCtxRef.current.decodeAudioData(arrayBuffer);
+        audioBuffers.current[key] = audioBuffer;
+      } catch (error) {}
+    };
+
+    loadSound('leather', '/sounds/leather.mp3');
+    loadSound('metal', '/sounds/logo.mp3');
+    loadSound('strap', '/sounds/handle.mp3');
+    loadSound('logo', '/sounds/logo.mp3');
+    loadSound('zipper', '/sounds/zipper.mp3');
+    loadSound('handle', '/sounds/handle.mp3');
+  }, []);
+
+  const playSound = (category) => {
+    if (!audioCtxRef.current) return;
+    if (audioCtxRef.current.state === 'suspended') audioCtxRef.current.resume();
+    const buffer = audioBuffers.current[category];
+    if (buffer) {
+      if (activeSources.current[category]) {
+        try { activeSources.current[category].stop(); } catch (e) {}
+      }
+      const source = audioCtxRef.current.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      source.connect(audioCtxRef.current.destination);
+      source.start(0);
+      activeSources.current[category] = source;
+    }
+  };
+
+  const stopAllSounds = () => {
+    Object.values(activeSources.current).forEach(source => {
+      try { source.stop(); } catch(e) {}
+    });
+    activeSources.current = {};
+  };
+
+  const shadowTexture = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gradient.addColorStop(0, 'rgba(0, 0, 0, 0.9)');
+    gradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.6)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 128, 128);
+    return new THREE.CanvasTexture(canvas);
+  }, []);
+
+  // 인터랙션 로직 (Phase 2와 Phase 3 분리)
+  useFrame((state, delta) => {
+    if (!handPosRef || !handPosRef.current || !setHoveredMaterial) return;
+
+    const x = (handPosRef.current.x / size.width) * 2 - 1;
+    const y = -(handPosRef.current.y / size.height) * 2 + 1;
+    raycaster.setFromCamera({ x, y }, camera);
+
+    const resetVisualEffect = () => {
+      if (shadowMeshRef.current) {
+        shadowMeshRef.current.visible = false;
+        shadowMeshRef.current.scale.set(1, 1, 1);
+      }
+      stopAllSounds();
+      setHoveredMaterial(null);
+      lastHoveredCategory.current = null;
+    };
+
+    // Phase 2: 가방 소리, 그림자, 질감 표시 작동
+    if (phase === 2) {
+      const rotDiff = Math.abs(rotation[1] - prevRotY.current);
+      const isRotating = rotDiff > 0.001;
+
+      if (isRotating) {
+        enter({
+          phase: 'PHASE2_HAPTIC',
+          targetType: 'BAG_PART',
+          targetPart: 'BAG_BODY',
+          gesture: 'ROTATE'
+        });
+        addRotation(rotDiff * (180 / Math.PI));
+      }
+      prevRotY.current = rotation[1];
+
+      const intersects = raycaster.intersectObject(scene, true);
+      let category = 'none';
+
+      if (intersects.length > 0) {
+        const hit = intersects[0];
+        const hitObject = hit.object;
+        const hitName = hitObject.name.toLowerCase();
+
+        setHoveredMaterial(hitName);
+
+        if (hitName.includes('logo')) category = 'logo';
+        else if (hitName.includes('zip')) category = 'zipper';
+        else if (hitName.includes('handle')) category = 'handle';
+        else if (hitName.includes('hardware') || hitName.includes('buckle') || hitName.includes('side')) category = 'metal';
+        else if (hitName.includes('strap') || hitName.includes('line')) category = 'strap';
+        else if (hitName.includes('bag') || hitName.includes('panel')) category = 'leather';
+
+        if (category !== 'none') {
+          if (shadowMeshRef.current) {
+            shadowMeshRef.current.visible = true;
+            shadowMeshRef.current.position.copy(hit.point);
+            if (hit.face) {
+              const normal = hit.face.normal.clone();
+              normal.transformDirection(hit.object.matrixWorld);
+              shadowMeshRef.current.lookAt(hit.point.clone().add(normal));
+              shadowMeshRef.current.position.add(normal.multiplyScalar(0.015));
+            }
+            shadowMeshRef.current.scale.lerp(new THREE.Vector3(1.3, 1.3, 1.3), 0.15);
+          }
+
+          const distance = hit.point.distanceTo(lastHitPoint.current);
+          lastHitPoint.current.copy(hit.point);
+          const rawSpeed = (distance / delta) * 2.0;
+          const targetRate = Math.max(0.5, Math.min(0.5 + rawSpeed, 2.5));
+          currentPlaybackRate.current = THREE.MathUtils.lerp(currentPlaybackRate.current, targetRate, 0.1);
+
+          if (activeSources.current[category]) {
+            activeSources.current[category].playbackRate.value = currentPlaybackRate.current;
+          }
+
+          if (lastHoveredCategory.current !== category) {
+            resetVisualEffect();
+            lastHoveredCategory.current = category;
+            playSound(category);
+          }
+
+          if (!isRotating) {
+            console.log("현재 터치 중인 부위:", resolvePartName(hitName));
+            enter({
+              phase: 'PHASE2_HAPTIC',
+              targetType: 'BAG_PART',
+              targetPart: resolvePartName(hitName),
+              gesture: 'HOVER'
+            });
+          }
+        } else {
+          resetVisualEffect();
+          if (!isRotating) exit();
+        }
+      } else {
+        resetVisualEffect();
+        if (!isRotating) exit();
+      }
+    }
+    // Phase 3: 가방 정면 복구 및 기존 효과 끄기
+    else if (phase === 3) {
+      if (shadowMeshRef.current) shadowMeshRef.current.visible = false;
+      stopAllSounds();
+
+      if (bagGroupRef.current) {
+        const targetRotationX = isBagTilted ? 0.15 : 0;
+        bagGroupRef.current.rotation.x = THREE.MathUtils.lerp(bagGroupRef.current.rotation.x, targetRotationX, 0.1);
+        bagGroupRef.current.rotation.y = THREE.MathUtils.lerp(bagGroupRef.current.rotation.y, 0, 0.05);
+        bagGroupRef.current.rotation.z = THREE.MathUtils.lerp(bagGroupRef.current.rotation.z, 0, 0.05);
+      }
+    }
+  });
+
+  // 텍스처 설정
+  const activeMood = phase === 2 ? 'mcm' : currentMood;
+  const selectedTexture = textures[activeMood];
+  if (selectedTexture) {
+    selectedTexture.flipY = false;
     selectedTexture.wrapS = THREE.RepeatWrapping;
     selectedTexture.wrapT = THREE.RepeatWrapping;
-
-    // 패턴크기 설정
-    selectedTexture.repeat.set(8, 8); 
-
+    selectedTexture.repeat.set(10, 10);
     selectedTexture.colorSpace = THREE.SRGBColorSpace;
+    selectedTexture.anisotropy = 16;
+    selectedTexture.generateMipmaps = false;
+    selectedTexture.minFilter = THREE.LinearFilter;
   }
 
-  // 로고용 텍스처 설정 
-  const logoTexture = textures.logo;
-  if (logoTexture) {
-    logoTexture.flipY = false; 
-
-    logoTexture.wrapS = THREE.ClampToEdgeWrapping;
-    logoTexture.wrapT = THREE.ClampToEdgeWrapping;
-  }
-
-  //  텍스처 모델에 덮어씌우기
   useEffect(() => {
-    // 콘솔에서 메쉬/재질 이름 확인용 로그
-    console.log('--- 3D 모델 메쉬 정보 확인 ---');
-
     scene.traverse((child) => {
       if (child.isMesh && child.material) {
-        // 메쉬 이름 확인 로그
-        console.log(`메쉬 이름: ${child.name} / 재질(Material) 이름: ${child.material.name}`);
+        child.material.flatShading = false;
+        child.geometry.computeVertexNormals();
 
-        // 특정 파트에만 패턴 적용 
-        // 메쉬 이름으로 필터링하여 정확한 부위에만 적용
         if (child.material.name === 'bag') {
-          // 지정 파트 bag_mesh, side_panel_mesh
           if (child.name === 'bag_mesh' || child.name === 'side_panel_mesh') {
             child.material.map = selectedTexture;
-            child.material.color.set('white'); 
+            //child.material.color.set('#412D15');
+            child.material.color.set('#ffffff');
+            if (child.material.normalMap) child.material.normalScale.set(2, 2);
             child.material.needsUpdate = true;
           }
         }
 
-        // 로고 적용
-        if (child.name === 'logo_plate_mesh') {
-          child.material.map = logoTexture;
-          child.material.color.set('white');
+        if (
+          child.name === 'shoulder_strap_001_mesh' ||
+          child.name === 'shoulder_strap_002_mesh' ||
+          child.name === 'strap_001_mesh' ||
+          child.name === 'strap_002_mesh' ||
+          child.name === 'round_line_001_mesh' ||
+          child.name === 'round_line_002_mesh' ||
+          child.name === 'strong_handle_mesh'
+        ) {
+          child.material = child.material.clone();
+          child.material.map = null;
+          child.material.color.set('#5E3122');
           child.material.needsUpdate = true;
+        }
+
+        if (child.name === 'zipper_pull_pocket_0') {
+          setZipperMesh(child);
         }
       }
     });
-  }, [scene, textures, currentMood]);
+  }, [scene, textures, currentMood, phase]);
 
-  // 15도 회전된 뷰
-  return <primitive object={scene} rotation={[0, Math.PI / 12, 0]} scale={1.5} />;
+  const bagScale = phase === 3 ? 3.4 : 5.9;
+  const bagPosition = phase === 3 ? [0, -0.38, 0] : [0, -1.3, 0];
+
+  return (
+    <group>
+      <group ref={bagGroupRef} rotation={currentRotation}>
+        <primitive object={scene} scale={bagScale} position={bagPosition} />
+      </group>
+
+      <mesh ref={shadowMeshRef} visible={false}>
+        <planeGeometry args={[0.15, 0.15]} />
+        <meshBasicMaterial
+          map={shadowTexture}
+          transparent={true}
+          depthWrite={false}
+          opacity={0.8}
+        />
+      </mesh>
+
+      {phase === 3 && (
+        <>
+          {/* 오리지널 키링 (ID: 1) */}
+          <group
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              enter({ phase: 'PHASE3_STYLING', targetType: 'ACCESSORY', targetProductId: 1, gesture: 'PRESS' });
+            }}
+            onPointerUp={(e) => {
+              e.stopPropagation();
+              exit();
+            }}
+            onPointerOut={(e) => {
+              e.stopPropagation();
+              exit();
+            }}
+          >
+            <Accessory
+              modelUrl="/models/original_keyring.glb"
+              handPosRef={handPosRef}
+              targetObject={zipperMesh}
+              initialFloatPosition={new THREE.Vector3(-0.3, -0.52, 0.5)}
+              attachmentOffset={[0.38, 0.56, 0.43]}
+              attachmentRotation={[0, Math.PI / 4, 0]}
+              scale={3.5}
+              attachSoundUrl="/sounds/original_sound.mp3"
+              onToggleAttach={handleToggleAttach}
+            />
+          </group>
+
+          {/* 테디베어 키링 (ID: 2) */}
+          <group
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              enter({ phase: 'PHASE3_STYLING', targetType: 'ACCESSORY', targetProductId: 2, gesture: 'PRESS' });
+            }}
+            onPointerUp={(e) => {
+              e.stopPropagation();
+              exit();
+            }}
+            onPointerOut={(e) => {
+              e.stopPropagation();
+              exit();
+            }}
+          >
+            <Accessory
+              modelUrl="/models/teddy_keyring.glb"
+              handPosRef={handPosRef}
+              targetObject={zipperMesh}
+              initialFloatPosition={new THREE.Vector3(0.3, -0.52, 0.5)}
+              attachmentOffset={[0.38, 0.56, 0.43]}
+              attachmentRotation={[0, -Math.PI / 2, 0]}
+              scale={3.5}
+              attachSoundUrl="/sounds/teddy_sound.mp3"
+              onToggleAttach={handleToggleAttach}
+            />
+          </group>
+        </>
+      )}
+    </group>
+  );
 }
