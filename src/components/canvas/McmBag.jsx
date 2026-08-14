@@ -27,6 +27,7 @@ const resolvePartName = (meshName) => {
 export function McmBag({
   currentMood = 'street',
   rotation = [0, Math.PI / 12, 0],
+  phase = 2,
   handPosRef,
   sessionPublicId,
   setHoveredMaterial,
@@ -44,7 +45,6 @@ export function McmBag({
   const lastHitPoint = useRef(new THREE.Vector3());
   const currentPlaybackRate = useRef(1.0);
 
-  const [phase, setPhase] = useState(2);
   const [zipperMesh, setZipperMesh] = useState(null);
   const bagGroupRef = useRef();
   const currentRotation = phase === 3 ? [0, 0, 0] : rotation;
@@ -68,16 +68,9 @@ export function McmBag({
   };
 
   useEffect(() => {
-    markOrigin(); 
-
-    const timer = setTimeout(async () => {
-      console.log("Phase 3 시작: 가방 인터랙션 종료, 악세서리 등장!");
-      await flush();
-      setPhase(3);
-    }, 20000);
-    
-    return () => clearTimeout(timer);
-  }, [flush, markOrigin]);
+    if (phase === 2) markOrigin();
+    if (phase === 3) void flush();
+  }, [flush, markOrigin, phase]);
 
   useEffect(() => {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -248,6 +241,12 @@ export function McmBag({
         bagGroupRef.current.rotation.y = THREE.MathUtils.lerp(bagGroupRef.current.rotation.y, 0, 0.05);
         bagGroupRef.current.rotation.z = THREE.MathUtils.lerp(bagGroupRef.current.rotation.z, 0, 0.05);
       }
+    }
+    // 오브 주입 단계에서는 가방 촉각 효과와 사운드를 모두 끈다.
+    else {
+      if (shadowMeshRef.current) shadowMeshRef.current.visible = false;
+      stopAllSounds();
+      setHoveredMaterial(null);
     }
   });
 
