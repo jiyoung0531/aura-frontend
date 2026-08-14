@@ -397,7 +397,7 @@
   object-fit: contain;
   display: inline-flex;
   align-items: center;
-  transform: translateY(0px); /
+  transform: translateY(0px);
 }
 
 .phase3-content {
