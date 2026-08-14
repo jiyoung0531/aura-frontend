@@ -28,6 +28,7 @@ export function McmBag({
   currentMood = 'street',
   rotation = [0, Math.PI / 12, 0],
   handPosRef,
+  sessionPublicId,
   setHoveredMaterial,
 }) {
   const { scene } = useGLTF(BAG_MODEL_URL);
@@ -51,7 +52,7 @@ export function McmBag({
   const tiltTimeoutRef = useRef(null);
 
   // 이벤트 트래킹 훅 연결
-  const { markOrigin, enter, exit, addRotation, flush } = useInteractionRecorder('test-123');
+  const { markOrigin, enter, exit, addRotation, flush } = useInteractionRecorder(sessionPublicId);
   const prevRotY = useRef(rotation[1]);
 
   const handleToggleAttach = (attached) => {

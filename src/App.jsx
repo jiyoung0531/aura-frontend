@@ -3,8 +3,10 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { McmBag } from "./components/canvas/McmBag";
 import CameraScreen from "./components/CameraScreen";
+import ConsentScreen from "./components/ConsentScreen";
 import "./App.css";
 import PhaseOverlay from "./components/ui/PhaseOverlay";
+import { analyzeAura, createSession, updateSessionStatus } from "./api/auraApi";
 
 const INITIAL_BAG_YAW = Math.PI / 12;
 const INITIAL_BAG_PITCH = 0;
@@ -17,6 +19,29 @@ const DEFAULT_AURA_RESULT = {
     { id: "white", imageSrc: "/aura-color-white.svg", label: "Aura white" },
   ],
 };
+
+const captureVideoFrame = (video) => {
+  const sourceWidth = video.videoWidth;
+  const sourceHeight = video.videoHeight;
+  const scale = 512 / Math.max(sourceWidth, sourceHeight);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(sourceWidth * scale);
+  canvas.height = Math.round(sourceHeight * scale);
+  canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.7);
+};
+
+const toAuraResult = (analysis) => ({
+  style: analysis.style.charAt(0) + analysis.style.slice(1).toLowerCase(),
+  matchPercentage: analysis.energy_level,
+  mood: analysis.mood,
+  patternUrl: analysis.pattern_url,
+  palette: analysis.palette.map((color, index) => ({
+    id: `${index}-${color}`,
+    color,
+    label: `Aura color ${index + 1}`,
+  })),
+});
 
 const getDisplayMetrics = (videoElement, canvasElement) => {
   const displayWidth = canvasElement.clientWidth || window.innerWidth;
@@ -42,8 +67,9 @@ const getDisplayMetrics = (videoElement, canvasElement) => {
   };
 };
 
-const createParticleField = (width, height, count = 270) => {
+const createParticleField = (width, height, count = 270, energyLevel = 50) => {
   const maxRadius = Math.max(width, height) * 0.38;
+  const speedMultiplier = 0.75 + energyLevel / 200;
 
   return Array.from({ length: count }, (_, index) => {
     const angle = (index / count) * Math.PI * 2 + Math.random() * 0.8;
@@ -52,7 +78,7 @@ const createParticleField = (width, height, count = 270) => {
     return {
       angle,
       radius,
-      angularSpeed: 0.0022 + Math.random() * 0.0028,
+      angularSpeed: (0.0022 + Math.random() * 0.0028) * speedMultiplier,
       radiusDecay: 0.9978 - Math.random() * 0.00035,
       size: 1 + Math.random() * 2.2,
       alpha: 0.24 + Math.random() * 0.5,
@@ -77,15 +103,20 @@ const drawParticleField = (context, width, height, particles, time) => {
     particle.angle += particle.angularSpeed;
     particle.radius *= Math.pow(particle.radiusDecay, 1.8);
 
-    const swirlRadius = particle.radius *
+    const swirlRadius =
+      particle.radius *
       (0.88 + 0.12 * Math.sin(time * 0.001 + particle.phase + index * 0.018));
     const spiralAngle = particle.angle + index * 0.03;
 
     const x = centerX + Math.cos(spiralAngle) * swirlRadius;
     const y = centerY + Math.sin(spiralAngle) * swirlRadius;
 
-    const alpha = Math.max(0.14, particle.alpha * (0.65 + (1 - progress) * 0.35));
-    const size = particle.size * (0.85 + 0.45 * Math.sin(time * 0.002 + particle.phase));
+    const alpha = Math.max(
+      0.14,
+      particle.alpha * (0.65 + (1 - progress) * 0.35),
+    );
+    const size =
+      particle.size * (0.85 + 0.45 * Math.sin(time * 0.002 + particle.phase));
 
     context.beginPath();
     context.arc(x, y, size, 0, Math.PI * 2);
@@ -110,9 +141,7 @@ export default function App() {
     width: 170,
   });
   const fistPhotoSrc = "/rock2.png";
-  const [route, setRoute] = useState(() =>
-    window.location.pathname === "/" ? "/camera" : window.location.pathname,
-  );
+  const [route, setRoute] = useState(window.location.pathname || "/");
   const [bagYaw, setBagYaw] = useState(INITIAL_BAG_YAW);
   const [bagPitch, setBagPitch] = useState(INITIAL_BAG_PITCH);
   const [phase, setPhase] = useState(2);
@@ -123,7 +152,7 @@ export default function App() {
         setPhase(3);
       }, 20000);
 
-      return () => clearTimeout(timer); 
+      return () => clearTimeout(timer);
     }
   }, [phase]);
 
@@ -134,26 +163,43 @@ export default function App() {
   const openHandStartedAtRef = useRef(null);
   const showReachPromptRef = useRef(false);
   const navigationTriggeredRef = useRef(false);
-  const cameraPhaseRef = useRef("analysis");
+  const cameraPhaseRef = useRef("scanning");
   const particleStateRef = useRef(null);
   const [showReachPrompt, setShowReachPrompt] = useState(false);
-  const [cameraPhase, setCameraPhase] = useState("analysis");
+  const [cameraPhase, setCameraPhase] = useState("scanning");
+  const [auraResult, setAuraResult] = useState(DEFAULT_AURA_RESULT);
+  const [analysisReady, setAnalysisReady] = useState(false);
+  const [publicId, setPublicId] = useState(() =>
+    window.sessionStorage.getItem("aura_public_id"),
+  );
+  const publicIdRef = useRef(publicId);
+  const analysisStartedRef = useRef(false);
 
-  const showBagScene = route === "/" || route === "/bag";
+  const showConsentPage = route === "/" || route === "/consent";
+  const showBagScene = route === "/bag";
   const showBagOverlay = route === "/bag";
   const showCameraPage = route === "/camera";
   const showCamera = showBagOverlay || showCameraPage;
   const mirrorCamera = showCameraPage;
 
   useEffect(() => {
-    if (window.location.pathname === "/") {
-      window.history.replaceState({}, "", "/camera");
-    }
-
     const handlePopState = () => setRoute(window.location.pathname || "/");
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
+
+  const handleConsentStart = async () => {
+    const session = await createSession();
+    publicIdRef.current = session.public_id;
+    setPublicId(session.public_id);
+    window.sessionStorage.setItem("aura_public_id", session.public_id);
+    analysisStartedRef.current = false;
+    setAnalysisReady(false);
+    setAuraResult(DEFAULT_AURA_RESULT);
+    setCameraPhase("scanning");
+    window.history.pushState({}, "", "/camera");
+    setRoute("/camera");
+  };
 
   useEffect(() => {
     cameraPhaseRef.current = cameraPhase;
@@ -166,7 +212,7 @@ export default function App() {
 
     const resetTimer = window.setTimeout(() => {
       setShowReachPrompt(false);
-      setCameraPhase("analysis");
+      setCameraPhase("scanning");
     }, 0);
 
     if (!showCameraPage) {
@@ -177,7 +223,19 @@ export default function App() {
   }, [showCameraPage]);
 
   useEffect(() => {
-    if (!showCameraPage || cameraPhase !== "analysis") return undefined;
+    if (!showCameraPage || cameraPhase !== "complete") return undefined;
+
+    const completeTimer = window.setTimeout(() => {
+      setCameraPhase("result");
+    }, 2000);
+
+    return () => window.clearTimeout(completeTimer);
+  }, [cameraPhase, showCameraPage]);
+
+  useEffect(() => {
+    if (!showCameraPage || cameraPhase !== "result" || !analysisReady) {
+      return undefined;
+    }
 
     const particleTimer = window.setTimeout(() => {
       const canvas = canvasRef.current;
@@ -185,15 +243,16 @@ export default function App() {
         particles: createParticleField(
           canvas?.clientWidth || window.innerWidth,
           canvas?.clientHeight || window.innerHeight,
-          140,
+          80 + Math.round(auraResult.matchPercentage * 1.2),
+          auraResult.matchPercentage,
         ),
         startedAt: performance.now(),
       };
       setCameraPhase("particles");
-    }, 5000);
+    }, 10000);
 
     return () => window.clearTimeout(particleTimer);
-  }, [cameraPhase, showCameraPage]);
+  }, [analysisReady, auraResult, cameraPhase, showCameraPage]);
 
   useEffect(() => {
     if (!showCameraPage || cameraPhase !== "particles") return undefined;
@@ -256,7 +315,11 @@ export default function App() {
 
       if (!particleStateRef.current?.particles?.length) {
         particleStateRef.current = {
-          particles: createParticleField(canvas.clientWidth, canvas.clientHeight, 140),
+          particles: createParticleField(
+            canvas.clientWidth,
+            canvas.clientHeight,
+            140,
+          ),
           startedAt: performance.now(),
         };
       }
@@ -300,12 +363,20 @@ export default function App() {
             landmarks[16],
             landmarks[20],
           ].filter(Boolean);
-          const palmWidth = landmarks[5] && landmarks[17]
-            ? Math.hypot(landmarks[5].x - landmarks[17].x, landmarks[5].y - landmarks[17].y)
-            : 0.18;
-          const wristToMiddle = landmarks[0] && landmarks[9]
-            ? Math.hypot(landmarks[0].x - landmarks[9].x, landmarks[0].y - landmarks[9].y)
-            : 0.18;
+          const palmWidth =
+            landmarks[5] && landmarks[17]
+              ? Math.hypot(
+                  landmarks[5].x - landmarks[17].x,
+                  landmarks[5].y - landmarks[17].y,
+                )
+              : 0.18;
+          const wristToMiddle =
+            landmarks[0] && landmarks[9]
+              ? Math.hypot(
+                  landmarks[0].x - landmarks[9].x,
+                  landmarks[0].y - landmarks[9].y,
+                )
+              : 0.18;
           const handSize = Math.max(palmWidth, wristToMiddle, 0.08);
           const fistThreshold = Math.min(0.32, Math.max(0.16, handSize * 0.9));
           const rawFist =
@@ -316,13 +387,16 @@ export default function App() {
               return Math.hypot(dx, dy) < fistThreshold;
             });
           const fistDelta = rawFist ? 0.16 : -0.08;
-          fistConfidenceRef.current = Math.min(1, Math.max(0, fistConfidenceRef.current + fistDelta));
+          fistConfidenceRef.current = Math.min(
+            1,
+            Math.max(0, fistConfidenceRef.current + fistDelta),
+          );
           const isFist = fistConfidenceRef.current >= 0.5;
           const extendedFingerCount = fingerTips.slice(1).filter((point) => {
-              const dx = point.x - rawX;
-              const dy = point.y - rawY;
-              return Math.hypot(dx, dy) > handSize * 0.9;
-            }).length;
+            const dx = point.x - rawX;
+            const dy = point.y - rawY;
+            return Math.hypot(dx, dy) > handSize * 0.9;
+          }).length;
           const openHand = fingerTips.length === 5 && extendedFingerCount >= 3;
 
           if (showReachPromptRef.current) {
@@ -342,17 +416,30 @@ export default function App() {
               navigationTriggeredRef.current = true;
               showReachPromptRef.current = false;
               setShowReachPrompt(false);
+              if (publicIdRef.current) {
+                void updateSessionStatus(
+                  publicIdRef.current,
+                  "SUMMONING",
+                ).catch((error) =>
+                  console.error("Session status update failed:", error),
+                );
+              }
               window.history.pushState({}, "", "/bag");
               setRoute("/bag");
             }
           }
           // debug: log fist detection
           console.log(
-            'App: rawFist=', rawFist,
-            'isFist=', isFist,
-            'confidence=', fistConfidenceRef.current.toFixed(2),
-            'fingerTipsCount=', fingerTips.length,
-            'threshold=', fistThreshold.toFixed(3),
+            "App: rawFist=",
+            rawFist,
+            "isFist=",
+            isFist,
+            "confidence=",
+            fistConfidenceRef.current.toFixed(2),
+            "fingerTipsCount=",
+            fingerTips.length,
+            "threshold=",
+            fistThreshold.toFixed(3),
           );
 
           const x = offsetX + (1 - rawX) * drawWidth;
@@ -536,6 +623,32 @@ export default function App() {
         await video.play();
         setStatusText("손을 화면에 보여주세요");
 
+        if (showCameraPage && !analysisStartedRef.current) {
+          analysisStartedRef.current = true;
+          void (async () => {
+            try {
+              const sessionPublicId = publicIdRef.current;
+              if (!sessionPublicId) {
+                throw new Error("분석 세션이 없습니다. 동의 화면부터 다시 시작해 주세요.");
+              }
+              const analysis = await analyzeAura(
+                sessionPublicId,
+                captureVideoFrame(video),
+              );
+              if (cancelled) return;
+              setAuraResult(toAuraResult(analysis));
+            } catch (error) {
+              console.error("Aura analysis failed; using fallback:", error);
+            } finally {
+              if (!cancelled) setAnalysisReady(true);
+              if (!cancelled) {
+                cameraPhaseRef.current = "complete";
+                setCameraPhase("complete");
+              }
+            }
+          })();
+        }
+
         const detectFrame = async () => {
           if (cancelled || !video || !handLandmarker) return;
 
@@ -582,6 +695,8 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      {showConsentPage && <ConsentScreen onStart={handleConsentStart} />}
+
       {showBagScene && (
         <div className="scene-layer">
           <Canvas camera={{ position: [0, 0, 5], fov: 50 }}>
@@ -592,6 +707,7 @@ export default function App() {
               currentMood="street"
               rotation={[bagPitch, bagYaw, 0]}
               handPosRef={handPosRef}
+              sessionPublicId={publicId}
               setHoveredMaterial={(name) => {
                 hoveredMaterialRef.current = name;
               }}
@@ -624,7 +740,7 @@ export default function App() {
         mirror={mirrorCamera}
         cameraPhase={showCameraPage ? cameraPhase : null}
         showReachPrompt={showCameraPage && showReachPrompt}
-        auraResult={DEFAULT_AURA_RESULT}
+        auraResult={auraResult}
       />
 
       {showCamera && !showCameraPage && (
