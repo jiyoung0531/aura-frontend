@@ -6,9 +6,13 @@ export default function CameraScreen({
   hideVideo,
   overlay,
   mirror,
-  showBagReveal,
+  cameraPhase,
   showReachPrompt,
+  auraResult,
 }) {
+  const showAnalysis = cameraPhase === "analysis";
+  const showBagReveal = cameraPhase === "particles" || cameraPhase === "reach";
+
   return (
     <div
       className={`camera-panel ${visible ? "visible" : ""} ${fullscreen ? "fullscreen" : ""} ${overlay ? "overlay" : ""} ${mirror ? "mirrored" : ""}`}
@@ -28,7 +32,7 @@ export default function CameraScreen({
         />
       )}
       <canvas ref={canvasRef} className="tracking-canvas" />
-      {showBagReveal && (
+      {cameraPhase && (
         <div className="camera-ui-overlay" aria-hidden="true">
           <img
             src="/aura-corner-left.svg"
@@ -62,6 +66,35 @@ export default function CameraScreen({
           </div>
 
           <img src="/mcm-logo.svg" alt="" className="camera-mcm-logo" />
+
+          {showAnalysis && (
+            <>
+              <div className="camera-style-card">
+                <span>STYLE</span>
+                <strong>{auraResult.style}</strong>
+                <b>{auraResult.matchPercentage}%</b>
+              </div>
+              <div className="camera-color-card">
+                <span>AURA color</span>
+                {auraResult.palette.map((color) =>
+                  color.imageSrc ? (
+                    <img
+                      key={color.id}
+                      src={color.imageSrc}
+                      alt={color.label}
+                    />
+                  ) : (
+                    <i
+                      key={color.id}
+                      className="camera-color-swatch"
+                      style={{ backgroundColor: color.color }}
+                      title={color.label}
+                    />
+                  ),
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
       {showReachPrompt && (

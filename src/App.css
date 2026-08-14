@@ -152,6 +152,9 @@
 }
 
 .camera-ui-overlay {
+  --camera-frame-x: clamp(24px, 5.55vw, 80px);
+  --camera-frame-top: clamp(24px, 5.1vh, 61px);
+  --camera-frame-bottom: clamp(24px, 4.15vh, 50px);
   position: absolute;
   inset: 0;
   z-index: 3;
@@ -168,17 +171,17 @@
 
 .camera-corner-top-left,
 .camera-corner-bottom-left {
-  left: clamp(24px, 5.55vw, 80px);
+  left: var(--camera-frame-x);
 }
 
 .camera-corner-top-right,
 .camera-corner-bottom-right {
-  right: clamp(24px, 5.55vw, 80px);
+  right: var(--camera-frame-x);
 }
 
 .camera-corner-top-left,
 .camera-corner-top-right {
-  top: clamp(24px, 5.1vh, 61px);
+  top: var(--camera-frame-top);
 }
 
 .camera-corner-top-right {
@@ -187,7 +190,7 @@
 
 .camera-corner-bottom-left,
 .camera-corner-bottom-right {
-  bottom: clamp(24px, 4.15vh, 50px);
+  bottom: var(--camera-frame-bottom);
 }
 
 .camera-corner-bottom-left {
@@ -200,39 +203,39 @@
 
 .camera-aura-logo {
   position: absolute;
-  top: clamp(42px, 6.25vh, 75px);
+  top: 45px;
   left: 50%;
-  width: clamp(78px, 6.6vw, 95px);
+  width: 54px;
   height: auto;
   transform: translateX(-50%);
 }
 
 .camera-progress {
   position: absolute;
-  top: clamp(112px, 12.25vh, 147px);
+  top: 76px;
   left: 50%;
   display: flex;
   align-items: center;
-  gap: clamp(7px, 0.75vw, 11px);
+  gap: 6px;
   transform: translateX(-50%);
 }
 
 .camera-progress > img {
-  width: clamp(20px, 1.75vw, 25px);
+  width: 12px;
   height: auto;
 }
 
 .camera-progress-step {
   display: grid;
-  width: clamp(34px, 2.85vw, 41px);
-  height: clamp(34px, 2.85vw, 41px);
+  width: 19px;
+  height: 19px;
   place-items: center;
   box-sizing: border-box;
-  border: 2px solid #f3ede3;
+  border: 1px solid #f3ede3;
   border-radius: 50%;
   background: #fff;
   color: #b08d57;
-  font-size: clamp(16px, 1.4vw, 20px);
+  font-size: 10px;
   font-weight: 600;
   line-height: 1;
 }
@@ -245,11 +248,96 @@
 
 .camera-mcm-logo {
   position: absolute;
-  bottom: clamp(32px, 5.05vh, 61px);
+  bottom: 35px;
   left: 50%;
-  width: clamp(44px, 3.75vw, 54px);
+  width: 38px;
   height: auto;
   transform: translateX(-50%);
+}
+
+.camera-style-card,
+.camera-color-card {
+  position: absolute;
+  z-index: 4;
+  box-sizing: border-box;
+  border-radius: clamp(16px, 1.6vw, 23px);
+  background: #f3ede3;
+  color: #111;
+  animation: show-camera-prompt 0.35s ease-out both;
+}
+
+.camera-style-card {
+  left: calc(var(--camera-frame-x) + clamp(20px, 2.2vw, 32px));
+  bottom: calc(var(--camera-frame-bottom) + clamp(54px, 6vh, 72px));
+  display: flex;
+  width: clamp(150px, 15vw, 215px);
+  height: clamp(122px, 14.5vh, 174px);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(5px, 0.6vh, 8px);
+  animation-name: show-camera-style-card;
+}
+
+@keyframes show-camera-style-card {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.camera-style-card span {
+  position: absolute;
+  top: clamp(12px, 1.5vh, 18px);
+  left: clamp(12px, 1vw, 15px);
+  color: #757575;
+  font-size: clamp(15px, 1.4vw, 20px);
+}
+
+.camera-style-card strong {
+  font-size: clamp(29px, 2.8vw, 40px);
+  font-weight: 400;
+}
+
+.camera-style-card b {
+  font-size: clamp(19px, 1.7vw, 24px);
+  font-weight: 600;
+}
+
+.camera-color-card {
+  top: calc(var(--camera-frame-top) + clamp(92px, 10vh, 120px));
+  right: calc(var(--camera-frame-x) + clamp(20px, 2.2vw, 32px));
+  display: flex;
+  width: clamp(112px, 10.4vw, 149px);
+  height: clamp(340px, 37.75vh, 453px);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(18px, 2vh, 24px);
+}
+
+.camera-color-card span {
+  margin-bottom: clamp(10px, 1.5vh, 18px);
+  color: #757575;
+  font-size: clamp(18px, 1.7vw, 24px);
+  white-space: nowrap;
+}
+
+.camera-color-card img,
+.camera-color-swatch {
+  width: clamp(62px, 5.85vw, 84px);
+  height: clamp(62px, 5.85vw, 84px);
+  flex: 0 0 auto;
+}
+
+.camera-color-swatch {
+  display: block;
+  border-radius: 50%;
 }
 
 .camera-reach-prompt {
@@ -288,20 +376,13 @@
 }
 
 @media (max-height: 600px) {
-  .camera-aura-logo {
-    top: 22px;
-  }
-
-  .camera-progress {
-    top: 68px;
-  }
-
-  .camera-mcm-logo {
-    bottom: 18px;
-  }
-
   .camera-reach-prompt {
     bottom: 70px;
+  }
+
+  .camera-color-card {
+    height: 300px;
+    gap: 12px;
   }
 }
 
@@ -397,7 +478,7 @@
   object-fit: contain;
   display: inline-flex;
   align-items: center;
-  transform: translateY(0px);
+  transform: translateY(0);
 }
 
 .phase3-content {
