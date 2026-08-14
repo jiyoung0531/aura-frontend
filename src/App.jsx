@@ -8,6 +8,15 @@ import PhaseOverlay from "./components/ui/PhaseOverlay";
 
 const INITIAL_BAG_YAW = Math.PI / 12;
 const INITIAL_BAG_PITCH = 0;
+const DEFAULT_AURA_RESULT = {
+  style: "Street",
+  matchPercentage: 94,
+  palette: [
+    { id: "street", imageSrc: "/aura-color-street.svg", label: "Street brown" },
+    { id: "gold", imageSrc: "/aura-color-gold.svg", label: "Aura gold" },
+    { id: "white", imageSrc: "/aura-color-white.svg", label: "Aura white" },
+  ],
+};
 
 const getDisplayMetrics = (videoElement, canvasElement) => {
   const displayWidth = canvasElement.clientWidth || window.innerWidth;
@@ -101,7 +110,9 @@ export default function App() {
     width: 170,
   });
   const fistPhotoSrc = "/rock2.png";
-  const [route, setRoute] = useState(window.location.pathname || "/");
+  const [route, setRoute] = useState(() =>
+    window.location.pathname === "/" ? "/camera" : window.location.pathname,
+  );
   const [bagYaw, setBagYaw] = useState(INITIAL_BAG_YAW);
   const [bagPitch, setBagPitch] = useState(INITIAL_BAG_PITCH);
   const [phase, setPhase] = useState(2);
@@ -123,8 +134,10 @@ export default function App() {
   const openHandStartedAtRef = useRef(null);
   const showReachPromptRef = useRef(false);
   const navigationTriggeredRef = useRef(false);
+  const cameraPhaseRef = useRef("analysis");
   const particleStateRef = useRef(null);
   const [showReachPrompt, setShowReachPrompt] = useState(false);
+  const [cameraPhase, setCameraPhase] = useState("analysis");
 
   const showBagScene = route === "/" || route === "/bag";
   const showBagOverlay = route === "/bag";
@@ -133,10 +146,18 @@ export default function App() {
   const mirrorCamera = showCameraPage;
 
   useEffect(() => {
+    if (window.location.pathname === "/") {
+      window.history.replaceState({}, "", "/camera");
+    }
+
     const handlePopState = () => setRoute(window.location.pathname || "/");
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
+
+  useEffect(() => {
+    cameraPhaseRef.current = cameraPhase;
+  }, [cameraPhase]);
 
   useEffect(() => {
     showReachPromptRef.current = false;
@@ -145,22 +166,46 @@ export default function App() {
 
     const resetTimer = window.setTimeout(() => {
       setShowReachPrompt(false);
+      setCameraPhase("analysis");
     }, 0);
 
     if (!showCameraPage) {
       return () => window.clearTimeout(resetTimer);
     }
 
-    const timer = window.setTimeout(() => {
+    return () => window.clearTimeout(resetTimer);
+  }, [showCameraPage]);
+
+  useEffect(() => {
+    if (!showCameraPage || cameraPhase !== "analysis") return undefined;
+
+    const particleTimer = window.setTimeout(() => {
+      const canvas = canvasRef.current;
+      particleStateRef.current = {
+        particles: createParticleField(
+          canvas?.clientWidth || window.innerWidth,
+          canvas?.clientHeight || window.innerHeight,
+          140,
+        ),
+        startedAt: performance.now(),
+      };
+      setCameraPhase("particles");
+    }, 5000);
+
+    return () => window.clearTimeout(particleTimer);
+  }, [cameraPhase, showCameraPage]);
+
+  useEffect(() => {
+    if (!showCameraPage || cameraPhase !== "particles") return undefined;
+
+    const revealTimer = window.setTimeout(() => {
       showReachPromptRef.current = true;
       setShowReachPrompt(true);
+      setCameraPhase("reach");
     }, 6000);
 
-    return () => {
-      window.clearTimeout(resetTimer);
-      window.clearTimeout(timer);
-    };
-  }, [showCameraPage]);
+    return () => window.clearTimeout(revealTimer);
+  }, [cameraPhase, showCameraPage]);
 
   useEffect(() => {
     if (!showCamera) {
@@ -216,7 +261,7 @@ export default function App() {
         };
       }
 
-      if (showCameraPage) {
+      if (showCameraPage && cameraPhaseRef.current === "particles") {
         drawParticleField(
           context,
           canvas.clientWidth,
@@ -577,8 +622,9 @@ export default function App() {
         hideVideo={showBagOverlay}
         overlay={showBagOverlay}
         mirror={mirrorCamera}
-        showBagReveal={showCameraPage}
+        cameraPhase={showCameraPage ? cameraPhase : null}
         showReachPrompt={showCameraPage && showReachPrompt}
+        auraResult={DEFAULT_AURA_RESULT}
       />
 
       {showCamera && !showCameraPage && (
