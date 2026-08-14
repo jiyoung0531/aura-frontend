@@ -316,9 +316,9 @@
 .camera-bag-reveal {
   position: absolute;
   left: 75%;
-  top: 50%;
+  top: 47%;
   z-index: 1;
-  width: min(11.33vw, 143px);
+  width: min(15vw, 190px);
   max-height: 72vh;
   object-fit: contain;
   opacity: 0;
@@ -676,8 +676,12 @@
 
 @keyframes reveal-camera-bag {
   0% {
-    opacity: 1;
+    opacity: 0;
     transform: translate(-50%, -50%) scale(0.02);
+  }
+
+  15% {
+    opacity: 1;
   }
 
   100% {
@@ -777,6 +781,74 @@
   align-items: flex-start;
   z-index: 5;
 }
+
+.aura-gather-prompt {
+  position: absolute;
+  top: 49vh;
+  left: 50%;
+  display: grid;
+  width: min(69.4vw, 533px);
+  height: clamp(62px, 6.42vh, 77px);
+  place-items: center;
+  border-radius: 23px;
+  background: rgba(243, 237, 227, 0.73);
+  color: #111;
+  font: 400 clamp(27px, 3vw, 36px)/1 Pretendard, "Noto Sans KR", sans-serif;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.aura-orb {
+  position: absolute;
+  z-index: 20;
+  width: clamp(132px, 16vw, 220px);
+  aspect-ratio: 1;
+  pointer-events: none;
+  opacity: 0.82;
+  transform: translate(-50%, -50%);
+  transition: left 0.02s linear, top 0.02s linear, opacity 0.35s ease, transform 0.35s ease;
+  mix-blend-mode: screen;
+}
+
+.aura-orb.injecting {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.16);
+  transition: left 0.8s cubic-bezier(0.22, 1, 0.36, 1), top 0.8s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.8s ease, transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.aura-orb-glow,
+.aura-orb-core,
+.aura-orb-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+}
+
+.aura-orb-glow {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.88) 0 15%, rgba(78, 222, 255, 0.48) 30%, rgba(0, 164, 210, 0.18) 54%, transparent 72%);
+  filter: blur(4px);
+  animation: aura-orb-pulse 1.7s ease-in-out infinite alternate;
+}
+
+.aura-orb-core {
+  inset: 22%;
+  background: radial-gradient(circle, rgba(255,255,255,0.92), rgba(199,249,255,0.32) 56%, transparent 72%);
+}
+
+.aura-orb-ring {
+  inset: 7%;
+  border: 3px solid rgba(73, 224, 255, 0.52);
+  border-top-color: rgba(255, 255, 255, 0.84);
+  border-right-color: transparent;
+  box-shadow: 0 0 15px rgba(48, 207, 255, 0.38);
+}
+
+.aura-orb-ring-one { transform: rotate(-24deg) scaleX(1.12) scaleY(0.64); animation: aura-orb-spin 2.8s linear infinite; }
+.aura-orb-ring-two { inset: 14%; transform: rotate(42deg) scaleX(0.72) scaleY(1.12); animation: aura-orb-spin 2.1s linear infinite reverse; }
+.aura-orb-ring-three { inset: 2%; transform: rotate(78deg) scaleX(1.05) scaleY(0.74); animation: aura-orb-spin 3.6s linear infinite; }
+
+@keyframes aura-orb-spin { to { rotate: 360deg; } }
+@keyframes aura-orb-pulse { to { transform: scale(1.08); opacity: 0.72; } }
 
 .phase3-title {
   text-align: left;

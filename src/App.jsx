@@ -4,6 +4,7 @@ import { OrbitControls } from "@react-three/drei";
 import { McmBag } from "./components/canvas/McmBag";
 import CameraScreen from "./components/CameraScreen";
 import ConsentScreen from "./components/ConsentScreen";
+import AuraOrbOverlay from "./components/AuraOrbOverlay";
 import "./App.css";
 import PhaseOverlay from "./components/ui/PhaseOverlay";
 import { analyzeAura, createSession, updateSessionStatus } from "./api/auraApi";
@@ -94,7 +95,8 @@ const drawParticleField = (context, width, height, particles, time) => {
   const centerY = height / 2;
   const progress = Math.min(1, time / 12000);
 
-  if (time >= 6000) return;
+  // 가방이 선명해진 뒤 0.5초만 파티클을 남긴다.
+  if (time >= 4800) return;
 
   context.save();
   context.globalCompositeOperation = "screen";
@@ -145,14 +147,45 @@ export default function App() {
   const [bagYaw, setBagYaw] = useState(INITIAL_BAG_YAW);
   const [bagPitch, setBagPitch] = useState(INITIAL_BAG_PITCH);
   const [phase, setPhase] = useState(2);
+  const phaseRef = useRef(phase);
+  const [orb, setOrb] = useState({
+    visible: false,
+    injecting: false,
+    x: 0,
+    y: 0,
+  });
+  const orbGatherStartedAtRef = useRef(null);
+  const orbStartDepthRef = useRef(null);
+  const orbStartHandSpanRef = useRef(null);
+  const orbCreatedAtRef = useRef(null);
+  const orbInjectionTriggeredRef = useRef(false);
+  const orbRef = useRef(orb);
 
   useEffect(() => {
-    if (phase === 2) {
+    if (route === "/bag" && phase === 2) {
       const timer = setTimeout(() => {
-        setPhase(3);
+        setPhase("orb");
       }, 20000);
 
       return () => clearTimeout(timer);
+    }
+  }, [phase, route]);
+
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
+
+  useEffect(() => {
+    orbRef.current = orb;
+  }, [orb]);
+
+  useEffect(() => {
+    if (phase !== "orb") {
+      orbGatherStartedAtRef.current = null;
+      orbStartDepthRef.current = null;
+      orbStartHandSpanRef.current = null;
+      orbCreatedAtRef.current = null;
+      orbInjectionTriggeredRef.current = false;
     }
   }, [phase]);
 
@@ -243,7 +276,7 @@ export default function App() {
         particles: createParticleField(
           canvas?.clientWidth || window.innerWidth,
           canvas?.clientHeight || window.innerHeight,
-          80 + Math.round(auraResult.matchPercentage * 1.2),
+          160 + Math.round(auraResult.matchPercentage * 2.4),
           auraResult.matchPercentage,
         ),
         startedAt: performance.now(),
@@ -294,7 +327,7 @@ export default function App() {
       const nextWidth = width || window.innerWidth;
       const nextHeight = height || window.innerHeight;
       particleStateRef.current = {
-        particles: createParticleField(nextWidth, nextHeight, 140),
+        particles: createParticleField(nextWidth, nextHeight, 280),
         startedAt: performance.now(),
       };
     };
@@ -313,12 +346,27 @@ export default function App() {
       );
       context.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 
+      const triggerOrbInjection = () => {
+        if (orbInjectionTriggeredRef.current) return;
+        orbInjectionTriggeredRef.current = true;
+        setOrb((current) => ({
+          ...current,
+          injecting: true,
+          x: window.innerWidth / 2,
+          y: window.innerHeight / 2,
+        }));
+        window.setTimeout(() => {
+          setOrb({ visible: false, injecting: false, x: 0, y: 0 });
+          setPhase(3);
+        }, 1100);
+      };
+
       if (!particleStateRef.current?.particles?.length) {
         particleStateRef.current = {
           particles: createParticleField(
             canvas.clientWidth,
             canvas.clientHeight,
-            140,
+            280,
           ),
           startedAt: performance.now(),
         };
@@ -332,6 +380,74 @@ export default function App() {
           particleStateRef.current.particles,
           performance.now() - particleStateRef.current.startedAt,
         );
+      }
+
+      const hands = results.landmarks || [];
+      if (phaseRef.current === "orb" && hands.length >= 2) {
+        const getPalmCenter = (hand) => {
+          const palmIndexes = [0, 5, 9, 13, 17];
+          const points = palmIndexes.map((index) => hand[index]).filter(Boolean);
+          return points.reduce(
+            (center, point) => ({
+              x: center.x + point.x / points.length,
+              y: center.y + point.y / points.length,
+              z: center.z + (point.z || 0) / points.length,
+            }),
+            { x: 0, y: 0, z: 0 },
+          );
+        };
+        const firstPalm = getPalmCenter(hands[0]);
+        const secondPalm = getPalmCenter(hands[1]);
+        const palmDistance = Math.hypot(
+          firstPalm.x - secondPalm.x,
+          firstPalm.y - secondPalm.y,
+        );
+        const midpoint = {
+          x: (firstPalm.x + secondPalm.x) / 2,
+          y: (firstPalm.y + secondPalm.y) / 2,
+          z: (firstPalm.z + secondPalm.z) / 2,
+        };
+        const orbX = offsetX + (1 - midpoint.x) * drawWidth;
+        const orbY = offsetY + midpoint.y * drawHeight;
+
+        if (!orbRef.current.visible && palmDistance < 0.22) {
+          if (orbGatherStartedAtRef.current === null) {
+            orbGatherStartedAtRef.current = performance.now();
+          }
+          if (performance.now() - orbGatherStartedAtRef.current >= 600) {
+            const firstPalmSpan = Math.hypot(
+              hands[0][5].x - hands[0][17].x,
+              hands[0][5].y - hands[0][17].y,
+            );
+            orbStartDepthRef.current = hands[0][0].z || midpoint.z;
+            orbStartHandSpanRef.current = firstPalmSpan;
+            orbCreatedAtRef.current = performance.now();
+            setOrb({ visible: true, injecting: false, x: orbX, y: orbY });
+          }
+        } else if (!orbRef.current.visible) {
+          orbGatherStartedAtRef.current = null;
+        }
+
+      }
+
+      if (
+        phaseRef.current === "orb" &&
+        orbRef.current.visible &&
+        !orbInjectionTriggeredRef.current &&
+        hands[0]?.[0] &&
+        hands[0]?.[5] &&
+        hands[0]?.[17] &&
+        performance.now() - (orbCreatedAtRef.current || performance.now()) > 500
+      ) {
+        const currentSpan = Math.hypot(
+          hands[0][5].x - hands[0][17].x,
+          hands[0][5].y - hands[0][17].y,
+        );
+        const movedTowardCamera =
+          hands[0][0].z < (orbStartDepthRef.current ?? 0) - 0.015 ||
+          currentSpan > (orbStartHandSpanRef.current ?? currentSpan) * 1.1;
+
+        if (movedTowardCamera) triggerOrbInjection();
       }
 
       const landmarks = results.landmarks?.[0];
@@ -424,6 +540,8 @@ export default function App() {
                   console.error("Session status update failed:", error),
                 );
               }
+              setPhase(2);
+              setOrb({ visible: false, injecting: false, x: 0, y: 0 });
               window.history.pushState({}, "", "/bag");
               setRoute("/bag");
             }
@@ -497,6 +615,18 @@ export default function App() {
             handSize,
           };
 
+          if (
+            phaseRef.current === "orb" &&
+            orbRef.current.visible &&
+            !orbInjectionTriggeredRef.current
+          ) {
+            setOrb((current) => ({
+              ...current,
+              x: cursorRef.current.x,
+              y: cursorRef.current.y,
+            }));
+          }
+
           const dynamicWidth = Math.max(
             110,
             Math.min(230, 260 - handSize * 600),
@@ -522,7 +652,7 @@ export default function App() {
             }),
           );
 
-          if (showBagOverlay) {
+          if (showBagOverlay && phaseRef.current === 2) {
             if (isFist) {
               const yawFromX = ((0.5 - rawX) * Math.PI * 2.2) % (Math.PI * 2);
               const pitchFromY = ((rawY - 0.5) * Math.PI * 0.8) % (Math.PI * 2);
@@ -602,7 +732,7 @@ export default function App() {
             delegate: "GPU",
           },
           runningMode: "VIDEO",
-          numHands: 1,
+          numHands: 2,
         });
 
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -706,6 +836,7 @@ export default function App() {
             <McmBag
               currentMood="street"
               rotation={[bagPitch, bagYaw, 0]}
+              phase={phase}
               handPosRef={handPosRef}
               sessionPublicId={publicId}
               setHoveredMaterial={(name) => {
@@ -715,7 +846,8 @@ export default function App() {
 
             <OrbitControls />
           </Canvas>
-          <PhaseOverlay phase={phase} />
+          <PhaseOverlay phase={phase} orbCreated={orb.visible} />
+          <AuraOrbOverlay orb={orb} />
           <img
             src={isFistState ? fistPhotoSrc : "/hand2.png"}
             alt="Hand overlay"
