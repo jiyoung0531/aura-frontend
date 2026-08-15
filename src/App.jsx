@@ -15,9 +15,9 @@ const DEFAULT_AURA_RESULT = {
   style: "Street",
   matchPercentage: 94,
   palette: [
-    { id: "street", imageSrc: "/aura-color-street.svg", label: "Street brown" },
-    { id: "gold", imageSrc: "/aura-color-gold.svg", label: "Aura gold" },
-    { id: "white", imageSrc: "/aura-color-white.svg", label: "Aura white" },
+    { id: "street", imageSrc: "/aura-color-street.svg", color: "#8E5A3B", label: "Street brown" },
+    { id: "gold", imageSrc: "/aura-color-gold.svg", color: "#B99556", label: "Aura gold" },
+    { id: "white", imageSrc: "/aura-color-white.svg", color: "#F8F4EA", label: "Aura white" },
   ],
 };
 
@@ -68,7 +68,13 @@ const getDisplayMetrics = (videoElement, canvasElement) => {
   };
 };
 
-const createParticleField = (width, height, count = 270, energyLevel = 50) => {
+const createParticleField = (
+  width,
+  height,
+  count = 270,
+  energyLevel = 50,
+  palette = ["#FFFFFF"],
+) => {
   const maxRadius = Math.max(width, height) * 0.38;
   const speedMultiplier = 0.75 + energyLevel / 200;
 
@@ -83,9 +89,20 @@ const createParticleField = (width, height, count = 270, energyLevel = 50) => {
       radiusDecay: 0.9978 - Math.random() * 0.00035,
       size: 1 + Math.random() * 2.2,
       alpha: 0.24 + Math.random() * 0.5,
+      color: palette[index % palette.length] || "#FFFFFF",
       phase: Math.random() * Math.PI * 2,
     };
   });
+};
+
+const hexToRgba = (hex, alpha) => {
+  const value = hex?.replace("#", "") || "FFFFFF";
+  const normalized = value.length === 3
+    ? value.split("").map((character) => character + character).join("")
+    : value;
+  const integer = Number.parseInt(normalized, 16);
+  if (Number.isNaN(integer)) return `rgba(255,255,255,${alpha})`;
+  return `rgba(${(integer >> 16) & 255},${(integer >> 8) & 255},${integer & 255},${alpha})`;
 };
 
 const drawParticleField = (context, width, height, particles, time) => {
@@ -122,7 +139,7 @@ const drawParticleField = (context, width, height, particles, time) => {
 
     context.beginPath();
     context.arc(x, y, size, 0, Math.PI * 2);
-    context.fillStyle = `rgba(255,255,255,${alpha})`;
+    context.fillStyle = hexToRgba(particle.color, alpha);
     context.fill();
   });
 
@@ -278,6 +295,7 @@ export default function App() {
           canvas?.clientHeight || window.innerHeight,
           160 + Math.round(auraResult.matchPercentage * 2.4),
           auraResult.matchPercentage,
+          auraResult.palette.map((color) => color.color).filter(Boolean),
         ),
         startedAt: performance.now(),
       };
