@@ -38,6 +38,8 @@ export const createSession = () =>
     body: JSON.stringify({ store_id: 1, consent_agreed: true }),
   });
 
+export const getAssetsManifest = () => request("/assets/manifest");
+
 export const analyzeAura = (publicId, imageBase64) =>
   request(`/sessions/${publicId}/analysis`, {
     method: "POST",
