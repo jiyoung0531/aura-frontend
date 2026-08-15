@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { OrbitControls, useTexture } from "@react-three/drei";
 import { McmBag } from "./components/canvas/McmBag";
 import CameraScreen from "./components/CameraScreen";
 import ConsentScreen from "./components/ConsentScreen";
 import AuraOrbOverlay from "./components/AuraOrbOverlay";
 import "./App.css";
 import PhaseOverlay from "./components/ui/PhaseOverlay";
-import { analyzeAura, createSession, updateSessionStatus } from "./api/auraApi";
+import { analyzeAura, createSession, getAssetsManifest, updateSessionStatus } from "./api/auraApi";
 
 const INITIAL_BAG_YAW = Math.PI / 12;
 const INITIAL_BAG_PITCH = 0;
@@ -171,6 +171,7 @@ export default function App() {
     x: 0,
     y: 0,
   });
+  const [bagInfused, setBagInfused] = useState(false);
   const orbGatherStartedAtRef = useRef(null);
   const orbStartDepthRef = useRef(null);
   const orbStartHandSpanRef = useRef(null);
@@ -218,12 +219,30 @@ export default function App() {
   const [showReachPrompt, setShowReachPrompt] = useState(false);
   const [cameraPhase, setCameraPhase] = useState("scanning");
   const [auraResult, setAuraResult] = useState(DEFAULT_AURA_RESULT);
+  const [assetManifest, setAssetManifest] = useState(null);
   const [analysisReady, setAnalysisReady] = useState(false);
   const [publicId, setPublicId] = useState(() =>
     window.sessionStorage.getItem("aura_public_id"),
   );
   const publicIdRef = useRef(publicId);
   const analysisStartedRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void getAssetsManifest()
+      .then((manifest) => {
+        if (cancelled) return;
+        setAssetManifest(manifest);
+        Object.values(manifest.patterns || {}).forEach((url) => useTexture.preload(url));
+        Object.values(manifest.hands || {}).forEach((url) => useTexture.preload(url));
+      })
+      .catch((error) => console.error("Asset manifest preload failed:", error));
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const showConsentPage = route === "/" || route === "/consent";
   const showBagScene = route === "/bag";
@@ -239,6 +258,11 @@ export default function App() {
   }, []);
 
   const handleConsentStart = async () => {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (AudioContext) {
+      window.__auraAudioContext ||= new AudioContext();
+      void window.__auraAudioContext.resume();
+    }
     const session = await createSession();
     publicIdRef.current = session.public_id;
     setPublicId(session.public_id);
@@ -367,6 +391,7 @@ export default function App() {
       const triggerOrbInjection = () => {
         if (orbInjectionTriggeredRef.current) return;
         orbInjectionTriggeredRef.current = true;
+        setBagInfused(true);
         setOrb((current) => ({
           ...current,
           injecting: true,
@@ -376,7 +401,7 @@ export default function App() {
         window.setTimeout(() => {
           setOrb({ visible: false, injecting: false, x: 0, y: 0 });
           setPhase(3);
-        }, 1100);
+        }, 2000);
       };
 
       if (!particleStateRef.current?.particles?.length) {
@@ -559,6 +584,7 @@ export default function App() {
                 );
               }
               setPhase(2);
+              setBagInfused(false);
               setOrb({ visible: false, injecting: false, x: 0, y: 0 });
               window.history.pushState({}, "", "/bag");
               setRoute("/bag");
@@ -852,7 +878,10 @@ export default function App() {
             <directionalLight position={[10, 10, 5]} intensity={3} />
 
             <McmBag
-              currentMood="street"
+              currentMood={auraResult.mood?.toLowerCase() || "street"}
+              assetPatterns={assetManifest?.patterns}
+              auraPalette={auraResult.palette.map((color) => color.color).filter(Boolean)}
+              isInfused={bagInfused}
               rotation={[bagPitch, bagYaw, 0]}
               phase={phase}
               handPosRef={handPosRef}
