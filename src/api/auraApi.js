@@ -69,3 +69,37 @@ export const completeVideoUpload = (publicId, payload) =>
   });
 
 export const getLanding = (publicId) => request(`/landing/${publicId}`);
+
+export const finalizeAuraSession = async (
+  publicId,
+  auraColors,
+  accessoryId,
+) => {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_BASE}/sessions/${publicId}/outputs/finalize`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          aura_code: auraColors,
+          attached_accessory_id: accessoryId || null,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error("QR 코드 생성 실패");
+    }
+
+    const result = await response.json();
+    console.log("백엔드가 보낸 진짜 응답:", result);
+
+    return result.data ? result.data : result;
+  } catch (error) {
+    console.error("QR 코드 생성 중 오류 발생:", error);
+    throw error;
+  }
+};
