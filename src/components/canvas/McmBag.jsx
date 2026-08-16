@@ -65,6 +65,8 @@ export function McmBag({
   const [isBagTilted, setIsBagTilted] = useState(false);
   const tiltTimeoutRef = useRef(null);
 
+  const [activeAccessory, setActiveAccessory] = useState(null);
+
   // 이벤트 트래킹 훅 연결
   const { markOrigin, enter, exit, addRotation, flush } = useInteractionRecorder(sessionPublicId);
   const prevRotY = useRef(rotation[1]);
@@ -374,7 +376,9 @@ export function McmBag({
               attachmentRotation={[0, Math.PI / 4, 0]}
               scale={3.5}
               attachSoundUrl="/sounds/original_sound.mp3"
-              onToggleAttach={handleToggleAttach}
+             //onToggleAttach={handleToggleAttach}
+             isAttached={activeAccessory === 'keyring'}
+             onToggleAttach={() => setActiveAccessory(activeAccessory === 'keyring' ? null : 'keyring')}
             />
           </group>
 
@@ -402,7 +406,9 @@ export function McmBag({
               attachmentRotation={[0, -Math.PI / 2, 0]}
               scale={3.5}
               attachSoundUrl="/sounds/teddy_sound.mp3"
-              onToggleAttach={handleToggleAttach}
+              isAttached={activeAccessory === 'charm'}
+              onToggleAttach={() => setActiveAccessory(activeAccessory === 'charm' ? null : 'charm')}
+             // onToggleAttach={handleToggleAttach}
             />
           </group>
         </>

@@ -11,6 +11,7 @@ export function Accessory({
   attachmentOffset = [0, 0, 0], 
   attachmentRotation = [0, 0, 0], 
   scale = 1, 
+  isAttached,
   onToggleAttach, 
   attachSoundUrl = '/sounds/attach.mp3'  
 }) {
@@ -21,7 +22,6 @@ export function Accessory({
   const groupRef = useRef(null); 
   const hoverTimer = useRef(0); 
   const canToggleRef = useRef(true); 
-  const [isAttached, setIsAttached] = useState(false); 
 
   const attachSound = useMemo(() => new Audio(attachSoundUrl), [attachSoundUrl]);
   const floatPos = useMemo(() => initialFloatPosition || new THREE.Vector3(0, -1.5, 1.5), [initialFloatPosition]);
@@ -48,15 +48,14 @@ export function Accessory({
         if (canToggleRef.current) {
           hoverTimer.current += delta; 
           if (hoverTimer.current >= 1.0) {
-            setIsAttached((prev) => {
-              const newState = !prev;
-              if (newState) {
-                attachSound.currentTime = 0; 
-                attachSound.play().catch(() => {});
-              }
-              if (onToggleAttach) onToggleAttach(newState); 
-              return newState;
-            });
+            
+           if (!isAttached) { 
+              attachSound.currentTime = 0; 
+              attachSound.play().catch(() => {});
+            }
+            
+            if (onToggleAttach) onToggleAttach(); 
+            
             hoverTimer.current = 0; 
             canToggleRef.current = false; 
 
@@ -71,25 +70,22 @@ export function Accessory({
       }
     }
 
-    // 2. 위치 업데이트 (버그 원천 차단)
     if (!isAttached) {
-      // 떨어져 있을 때: 둥둥 떠다니기
+      // 떨어져 있을 때
       const t = state.clock.elapsedTime;
       groupRef.current.position.set(floatPos.x, floatPos.y + Math.sin(t * 2) * 0.05, floatPos.z);
       groupRef.current.rotation.set(0, 0, 0); 
     } else {
-      // 붙었을 때: 지퍼의 최신 위치를 즉각 복사해서 따라다니기
+      // 붙었을 때
       if (targetObject) {
         targetObject.updateWorldMatrix(true, false);
         targetObject.getWorldPosition(groupRef.current.position);
         targetObject.getWorldQuaternion(groupRef.current.quaternion);
 
-        // 사용자가 지정한 위치만큼 밀어주기
         groupRef.current.translateX(attachmentOffset[0]);
         groupRef.current.translateY(attachmentOffset[1]);
         groupRef.current.translateZ(attachmentOffset[2]);
 
-        // 사용자가 지정한 각도만큼 틀어주기
         const offsetQuat = new THREE.Quaternion().setFromEuler(
           new THREE.Euler(attachmentRotation[0], attachmentRotation[1], attachmentRotation[2])
         );
