@@ -1,44 +1,47 @@
-import React, { useState } from 'react';
-import { finalizeAuraSession } from '../../api/auraApi';
-import QrResultScreen from './QrResultScreen';
+import React, { useState } from "react";
+import { finalizeAuraSession } from "../../api/auraApi";
+import QrResultScreen from "./QrResultScreen";
 
-export default function PhaseOverlay({ 
-  phase, 
+export default function PhaseOverlay({
+  phase,
   orbCreated = false,
-  publicId,           
-  auraColors,         
-  activeAccessoryId   
+  publicId,
+  auraColors,
+  activeAccessoryId,
 }) {
-  const isOrbPhase = phase === 'orb';
+  const isOrbPhase = phase === "orb" || phase === "injecting";
 
   const [qrImageUrl, setQrImageUrl] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  
+
   const handleCompleteClick = async () => {
-    setIsGenerating(true); 
+    setIsGenerating(true);
     try {
-      console.log("전송 데이터 확인:", { 
-        publicId: publicId, 
-        auraColors: auraColors, 
-        activeAccessoryId: activeAccessoryId 
+      console.log("전송 데이터 확인:", {
+        publicId: publicId,
+        auraColors: auraColors,
+        activeAccessoryId: activeAccessoryId,
       });
-      
-      const data = await finalizeAuraSession(publicId, auraColors, activeAccessoryId);
+
+      const data = await finalizeAuraSession(
+        publicId,
+        auraColors,
+        activeAccessoryId,
+      );
       setQrImageUrl(data.qr_image_url);
-      
     } catch (error) {
       console.error("에러 상세 내용:", error);
       alert("QR 코드 생성에 실패했습니다. 다시 시도해 주세요.");
     } finally {
-      setIsGenerating(false); 
+      setIsGenerating(false);
     }
   };
 
- if (qrImageUrl) {
+  if (qrImageUrl) {
     return (
-      <QrResultScreen 
-        qrImageUrl={qrImageUrl} 
-        onReset={() => window.location.href = '/'} 
+      <QrResultScreen
+        qrImageUrl={qrImageUrl}
+        onReset={() => (window.location.href = "/")}
       />
     );
   }
@@ -48,11 +51,15 @@ export default function PhaseOverlay({
       {/* 상단 영역 */}
       <div className="top-banner">
         <img src="/aura-logo.svg" alt="AURA Logo" className="aura-logo" />
-        
+
         {/* 스테퍼 */}
         <div className="stepper-row">
           <img src="/check.svg" alt="Step 1 Done" className="step-item" />
-          <img src="/aura-progress-gold.svg" alt="progress" className="step-progress" />
+          <img
+            src="/aura-progress-gold.svg"
+            alt="progress"
+            className="step-progress"
+          />
 
           {phase === 2 || isOrbPhase ? (
             <img src="/twoy.svg" alt="Step 2 Active" className="step-item" />
@@ -60,16 +67,24 @@ export default function PhaseOverlay({
             <img src="/check.svg" alt="Step 2 Done" className="step-item" />
           )}
 
-          <img 
-            src={phase === 3 ? "/aura-progress-gold.svg" : "/aura-progress-white.svg"} 
-            alt="progress" 
-            className="step-progress" 
+          <img
+            src={
+              phase === 3
+                ? "/aura-progress-gold.svg"
+                : "/aura-progress-white.svg"
+            }
+            alt="progress"
+            className="step-progress"
           />
 
           {phase === 3 ? (
             <img src="/threey.svg" alt="Step 3 Active" className="step-item" />
           ) : (
-            <img src="/threew.svg" alt="Step 3 Inactive" className="step-item" />
+            <img
+              src="/threew.svg"
+              alt="Step 3 Inactive"
+              className="step-item"
+            />
           )}
         </div>
       </div>
@@ -83,7 +98,7 @@ export default function PhaseOverlay({
         </div>
       )}
 
-      {isOrbPhase && (
+      {phase === "orb" && (
         <div className="aura-gather-prompt">
           {orbCreated ? "오브를 밀어넣어보세요" : "손을 모아보세요"}
         </div>
@@ -93,10 +108,10 @@ export default function PhaseOverlay({
       <div className="bottom-banner">
         {phase === 3 && (
           <>
-            <button 
-              className="complete-btn" 
+            <button
+              className="complete-btn"
               onClick={handleCompleteClick}
-              disabled={isGenerating} 
+              disabled={isGenerating}
             >
               {isGenerating ? "QR 생성 중..." : "완료"}
             </button>

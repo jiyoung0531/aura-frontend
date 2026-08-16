@@ -195,6 +195,18 @@
   transition: none;
 }
 
+.recording-status {
+  position: absolute;
+  right: 28px;
+  bottom: 28px;
+  z-index: 12;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #f3ede3;
+  font: 500 13px/1 Pretendard, sans-serif;
+}
+
 .hand-image-overlay {
   position: absolute;
   z-index: 5;

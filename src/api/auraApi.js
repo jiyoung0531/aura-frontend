@@ -52,18 +52,43 @@ export const updateSessionStatus = (publicId, status) =>
     body: JSON.stringify({ status }),
   });
 
-  export const finalizeAuraSession = async (publicId, auraColors, accessoryId) => {
+export const requestVideoUpload = (publicId, durationMs = 10000) =>
+  request(`/sessions/${publicId}/outputs/video-url`, {
+    method: "POST",
+    body: JSON.stringify({
+      content_type: "video/mp4",
+      duration_ms: durationMs,
+      include_thumbnail: true,
+    }),
+  });
+
+export const completeVideoUpload = (publicId, payload) =>
+  request(`/sessions/${publicId}/outputs/video-complete`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const getLanding = (publicId) => request(`/landing/${publicId}`);
+
+export const finalizeAuraSession = async (
+  publicId,
+  auraColors,
+  accessoryId,
+) => {
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE}/sessions/${publicId}/outputs/finalize`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    const response = await fetch(
+      `${import.meta.env.VITE_API_BASE}/sessions/${publicId}/outputs/finalize`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          aura_code: auraColors,
+          attached_accessory_id: accessoryId || null,
+        }),
       },
-      body: JSON.stringify({
-        aura_code: auraColors, 
-        attached_accessory_id: accessoryId || null 
-      }),
-    });
+    );
 
     if (!response.ok) {
       throw new Error("QR 코드 생성 실패");

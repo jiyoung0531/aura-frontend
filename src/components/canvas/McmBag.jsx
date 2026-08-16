@@ -34,6 +34,8 @@ export function McmBag({
   handPosRef,
   sessionPublicId,
   setHoveredMaterial,
+  onFirstBagInteraction,
+  onAccessoryAttached,
 }) {
   const { scene } = useGLTF(BAG_MODEL_URL);
   const textureUrls = useMemo(
@@ -64,6 +66,7 @@ export function McmBag({
   const currentRotation = phase === 3 ? [0, 0, 0] : rotation;
   const [isBagTilted, setIsBagTilted] = useState(false);
   const tiltTimeoutRef = useRef(null);
+  const bagInteractionRecordedRef = useRef(false);
 
   const [activeAccessory, setActiveAccessory] = useState(null);
 
@@ -72,6 +75,7 @@ export function McmBag({
   const prevRotY = useRef(rotation[1]);
 
   const handleToggleAttach = (attached) => {
+    if (attached) onAccessoryAttached?.();
     if (attached) {
       setTimeout(() => {
         setIsBagTilted(true);
@@ -210,6 +214,10 @@ export function McmBag({
         else if (hitName.includes('bag') || hitName.includes('panel')) category = 'leather';
 
         if (category !== 'none') {
+          if (!bagInteractionRecordedRef.current) {
+            bagInteractionRecordedRef.current = true;
+            onFirstBagInteraction?.();
+          }
           if (shadowMeshRef.current) {
             shadowMeshRef.current.visible = true;
             shadowMeshRef.current.position.copy(hit.point);
