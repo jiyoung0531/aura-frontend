@@ -8,6 +8,7 @@ import AuraOrbOverlay from "./components/AuraOrbOverlay";
 import "./App.css";
 import PhaseOverlay from "./components/ui/PhaseOverlay";
 import { analyzeAura, createSession, getAssetsManifest, updateSessionStatus } from "./api/auraApi";
+import LandingPage from './pages/LandingPage';
 
 const INITIAL_BAG_YAW = Math.PI / 12;
 const INITIAL_BAG_PITCH = 0;
@@ -248,6 +249,8 @@ export default function App() {
   const showBagScene = route === "/bag";
   const showBagOverlay = route === "/bag";
   const showCameraPage = route === "/camera";
+  const isLandingPage = route.startsWith("/landing/");
+  const landingId = isLandingPage ? route.split("/landing/")[1] : null;
   const showCamera = showBagOverlay || showCameraPage;
   const mirrorCamera = showCameraPage;
 
@@ -866,9 +869,14 @@ export default function App() {
       }
     };
   }, [showBagOverlay, showCamera, showCameraPage]);
+  
+  if (isLandingPage) {
+    return <LandingPage id={landingId} />;
+  }
 
   return (
     <div className="app-shell">
+   
       {showConsentPage && <ConsentScreen onStart={handleConsentStart} />}
 
       {showBagScene && (
@@ -928,6 +936,7 @@ export default function App() {
           <span>{isTracking ? "Aura Hand 추적 중" : statusText}</span>
         </div>
       )}
+        
     </div>
   );
 }
