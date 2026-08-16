@@ -1,6 +1,6 @@
-import React from 'react';
+export default function PhaseOverlay({ phase, orbCreated = false }) {
+  const isOrbPhase = phase === 'orb';
 
-export default function PhaseOverlay({ phase }) {
   return (
     <div className="phase-ui-overlay">
       {/* 상단 영역 */}
@@ -12,7 +12,7 @@ export default function PhaseOverlay({ phase }) {
           <img src="/check.svg" alt="Step 1 Done" className="step-item" />
           <img src="/aura-progress-gold.svg" alt="progress" className="step-progress" />
 
-          {phase === 2 ? (
+          {phase === 2 || isOrbPhase ? (
             <img src="/twoy.svg" alt="Step 2 Active" className="step-item" />
           ) : (
             <img src="/check.svg" alt="Step 2 Done" className="step-item" />
@@ -40,6 +40,12 @@ export default function PhaseOverlay({ phase }) {
     </div>
   </div>
 )}
+
+      {isOrbPhase && (
+        <div className="aura-gather-prompt">
+          {orbCreated ? "오브를 밀어넣어보세요" : "손을 모아보세요"}
+        </div>
+      )}
 
 {/* 하단 영역 */}
 <div className="bottom-banner">

@@ -26,12 +26,27 @@ const resolvePartName = (meshName) => {
 
 export function McmBag({
   currentMood = 'street',
+  assetPatterns,
+  auraPalette = [],
+  isInfused = false,
   rotation = [0, Math.PI / 12, 0],
+  phase = 2,
   handPosRef,
+  sessionPublicId,
   setHoveredMaterial,
 }) {
   const { scene } = useGLTF(BAG_MODEL_URL);
-  const textures = useTexture(TEXTURE_URLS);
+  const textureUrls = useMemo(
+    () => ({
+      original: assetPatterns?.original || TEXTURE_URLS.mcm,
+      STREET: assetPatterns?.STREET || TEXTURE_URLS.street,
+      ROMANTIC: assetPatterns?.ROMANTIC || TEXTURE_URLS.romantic,
+      CLASSIC: assetPatterns?.CLASSIC || TEXTURE_URLS.classic,
+      MINIMAL: assetPatterns?.MINIMAL || TEXTURE_URLS.minimal,
+    }),
+    [assetPatterns],
+  );
+  const textures = useTexture(textureUrls);
   const { camera, raycaster, size } = useThree();
 
   const lastHoveredCategory = useRef(null);
@@ -43,15 +58,15 @@ export function McmBag({
   const lastHitPoint = useRef(new THREE.Vector3());
   const currentPlaybackRate = useRef(1.0);
 
-  const [phase, setPhase] = useState(2);
   const [zipperMesh, setZipperMesh] = useState(null);
   const bagGroupRef = useRef();
+  const bagMaterialsRef = useRef([]);
   const currentRotation = phase === 3 ? [0, 0, 0] : rotation;
   const [isBagTilted, setIsBagTilted] = useState(false);
   const tiltTimeoutRef = useRef(null);
 
   // 이벤트 트래킹 훅 연결
-  const { markOrigin, enter, exit, addRotation, flush } = useInteractionRecorder('test-123');
+  const { markOrigin, enter, exit, addRotation, flush } = useInteractionRecorder(sessionPublicId);
   const prevRotY = useRef(rotation[1]);
 
   const handleToggleAttach = (attached) => {
@@ -67,20 +82,13 @@ export function McmBag({
   };
 
   useEffect(() => {
-    markOrigin(); 
-
-    const timer = setTimeout(async () => {
-      console.log("Phase 3 시작: 가방 인터랙션 종료, 악세서리 등장!");
-      await flush();
-      setPhase(3);
-    }, 20000);
-    
-    return () => clearTimeout(timer);
-  }, [flush, markOrigin]);
+    if (phase === 2) markOrigin();
+    if (phase === 3) void flush();
+  }, [flush, markOrigin, phase]);
 
   useEffect(() => {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
-    audioCtxRef.current = new AudioContext();
+    audioCtxRef.current = window.__auraAudioContext || new AudioContext();
 
     const loadSound = async (key, url) => {
       try {
@@ -138,8 +146,18 @@ export function McmBag({
     return new THREE.CanvasTexture(canvas);
   }, []);
 
+  const targetBagColor = useMemo(
+    () => new THREE.Color(isInfused ? auraPalette[0] || '#ffffff' : '#ffffff'),
+    [auraPalette, isInfused],
+  );
+
   // 인터랙션 로직 (Phase 2와 Phase 3 분리)
   useFrame((state, delta) => {
+    const colorLerp = 1 - Math.exp(-3.2 * delta);
+    bagMaterialsRef.current.forEach((material) => {
+      material.color?.lerp(targetBagColor, colorLerp);
+    });
+
     if (!handPosRef || !handPosRef.current || !setHoveredMaterial) return;
 
     const x = (handPosRef.current.x / size.width) * 2 - 1;
@@ -248,11 +266,18 @@ export function McmBag({
         bagGroupRef.current.rotation.z = THREE.MathUtils.lerp(bagGroupRef.current.rotation.z, 0, 0.05);
       }
     }
+    // 오브 주입 단계에서는 가방 촉각 효과와 사운드를 모두 끈다.
+    else {
+      if (shadowMeshRef.current) shadowMeshRef.current.visible = false;
+      stopAllSounds();
+      setHoveredMaterial(null);
+    }
   });
 
   // 텍스처 설정
-  const activeMood = phase === 2 ? 'mcm' : currentMood;
-  const selectedTexture = textures[activeMood];
+  const selectedTexture = isInfused
+    ? textures[currentMood.toUpperCase()] || textures.STREET
+    : textures.original;
   if (selectedTexture) {
     selectedTexture.flipY = false;
     selectedTexture.wrapS = THREE.RepeatWrapping;
@@ -262,22 +287,23 @@ export function McmBag({
     selectedTexture.anisotropy = 16;
     selectedTexture.generateMipmaps = false;
     selectedTexture.minFilter = THREE.LinearFilter;
+    selectedTexture.needsUpdate = true;
   }
 
   useEffect(() => {
+    bagMaterialsRef.current = [];
     scene.traverse((child) => {
       if (child.isMesh && child.material) {
         child.material.flatShading = false;
         child.geometry.computeVertexNormals();
 
-        if (child.material.name === 'bag') {
-          if (child.name === 'bag_mesh' || child.name === 'side_panel_mesh') {
-            child.material.map = selectedTexture;
-            //child.material.color.set('#412D15');
-            child.material.color.set('#ffffff');
-            if (child.material.normalMap) child.material.normalScale.set(2, 2);
-            child.material.needsUpdate = true;
-          }
+        if (child.name === 'bag_mesh' || child.name === 'side_panel_mesh') {
+          child.material.map = selectedTexture;
+          child.material.color.set('#ffffff');
+          child.material.map.needsUpdate = true;
+          bagMaterialsRef.current.push(child.material);
+          if (child.material.normalMap) child.material.normalScale.set(2, 2);
+          child.material.needsUpdate = true;
         }
 
         if (
@@ -300,7 +326,8 @@ export function McmBag({
         }
       }
     });
-  }, [scene, textures, currentMood, phase]);
+  }, [scene, textures, currentMood, phase, isInfused, selectedTexture]);
+
 
   const bagScale = phase === 3 ? 3.4 : 5.9;
   const bagPosition = phase === 3 ? [0, -0.38, 0] : [0, -1.3, 0];

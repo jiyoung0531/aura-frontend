@@ -1,6 +1,8 @@
 import { useRef, useCallback, useEffect } from 'react';
 
-const API_BASE = import.meta.env.VITE_API_BASE;
+const API_BASE =
+  import.meta.env.VITE_API_BASE ||
+  'https://aura-backend-877724382169.asia-northeast3.run.app/api';
 
 const MIN_DWELL_MS = 150;
 
@@ -67,6 +69,7 @@ export function useInteractionRecorder(publicId) {
   /* 버퍼 데이터 전송 */
   const flush = useCallback(async () => {
     exit();
+    if (!publicId) return;
     const events = bufferRef.current;
     if (events.length === 0) return;
 
