@@ -51,3 +51,21 @@ export const updateSessionStatus = (publicId, status) =>
     method: "PATCH",
     body: JSON.stringify({ status }),
   });
+
+export const requestVideoUpload = (publicId, durationMs = 10000) =>
+  request(`/sessions/${publicId}/outputs/video-url`, {
+    method: "POST",
+    body: JSON.stringify({
+      content_type: "video/mp4",
+      duration_ms: durationMs,
+      include_thumbnail: true,
+    }),
+  });
+
+export const completeVideoUpload = (publicId, payload) =>
+  request(`/sessions/${publicId}/outputs/video-complete`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const getLanding = (publicId) => request(`/landing/${publicId}`);

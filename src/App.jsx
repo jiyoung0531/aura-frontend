@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useTexture } from "@react-three/drei";
 import { McmBag } from "./components/canvas/McmBag";
@@ -8,6 +8,7 @@ import AuraOrbOverlay from "./components/AuraOrbOverlay";
 import "./App.css";
 import PhaseOverlay from "./components/ui/PhaseOverlay";
 import { analyzeAura, createSession, getAssetsManifest, updateSessionStatus } from "./api/auraApi";
+import { useExperienceRecorder } from "./hooks/useExperienceRecorder";
 import LandingPage from './pages/LandingPage';
 
 const INITIAL_BAG_YAW = Math.PI / 12;
@@ -120,8 +121,13 @@ const drawParticleField = (context, width, height, particles, time) => {
   context.globalCompositeOperation = "screen";
 
   particles.forEach((particle, index) => {
-    particle.angle += particle.angularSpeed;
-    particle.radius *= Math.pow(particle.radiusDecay, 1.8);
+    // Hand tracking may run well below the recording frame rate. Scale movement
+    // by elapsed time so the exported video keeps the intended particle speed.
+    const previousTime = particle.lastUpdatedAt ?? time;
+    const frameScale = Math.min(4, Math.max(0.5, (time - previousTime) / (1000 / 60)));
+    particle.lastUpdatedAt = time;
+    particle.angle += particle.angularSpeed * frameScale;
+    particle.radius *= Math.pow(particle.radiusDecay, 3 * frameScale);
 
     const swirlRadius =
       particle.radius *
@@ -150,10 +156,14 @@ const drawParticleField = (context, width, height, particles, time) => {
 export default function App() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const webglCanvasRef = useRef(null);
+  const cameraBagImageRef = useRef(null);
+  const handImageRef = useRef({ x: 0, y: 0, visible: false, width: 170, isFist: false });
+  const recordingStartedRef = useRef(false);
+  const outroCaptureTriggeredRef = useRef(false);
   const wasFistRef = useRef(false);
   const [statusText, setStatusText] = useState("카메라 초기화 중...");
   const [isTracking, setIsTracking] = useState(false);
-  const [isFistState, setIsFistState] = useState(false);
   const [handImagePos, setHandImagePos] = useState({
     x: 0,
     y: 0,
@@ -178,6 +188,7 @@ export default function App() {
   const orbStartHandSpanRef = useRef(null);
   const orbCreatedAtRef = useRef(null);
   const orbInjectionTriggeredRef = useRef(false);
+  const orbSequenceLockedRef = useRef(false);
   const orbRef = useRef(orb);
 
   useEffect(() => {
@@ -199,12 +210,13 @@ export default function App() {
   }, [orb]);
 
   useEffect(() => {
-    if (phase !== "orb") {
+    if (phase === 2) {
       orbGatherStartedAtRef.current = null;
       orbStartDepthRef.current = null;
       orbStartHandSpanRef.current = null;
       orbCreatedAtRef.current = null;
       orbInjectionTriggeredRef.current = false;
+      orbSequenceLockedRef.current = false;
     }
   }, [phase]);
 
@@ -227,6 +239,32 @@ export default function App() {
   );
   const publicIdRef = useRef(publicId);
   const analysisStartedRef = useRef(false);
+  const {
+    begin: beginExperienceRecording,
+    captureSegment,
+    status: recordingStatus,
+  } =
+    useExperienceRecorder({
+      videoRef,
+      trackingCanvasRef: canvasRef,
+      webglCanvasRef,
+      bagImageRef: cameraBagImageRef,
+      orbRef,
+      handImageRef,
+      phaseRef,
+    });
+
+  const handleFirstBagInteraction = useCallback(() => {
+    // 2–5 seconds: keep one three-second bag exploration clip.
+    captureSegment(3000);
+  }, [captureSegment]);
+
+  const handleAccessoryAttached = useCallback(() => {
+    if (outroCaptureTriggeredRef.current) return;
+    outroCaptureTriggeredRef.current = true;
+    // 13–15 seconds: only the bag with the visitor's selected keyring appears.
+    captureSegment(2000, { thumbnail: true, finish: true });
+  }, [captureSegment]);
 
   useEffect(() => {
     let cancelled = false;
@@ -249,10 +287,20 @@ export default function App() {
   const showBagScene = route === "/bag";
   const showBagOverlay = route === "/bag";
   const showCameraPage = route === "/camera";
-  const isLandingPage = route.startsWith("/landing/");
-  const landingId = isLandingPage ? route.split("/landing/")[1] : null;
+  const isLandingPage = route.startsWith("/landing/") || route.startsWith("/s/");
+  const landingId = route.startsWith("/s/")
+    ? route.split("/s/")[1]
+    : route.startsWith("/landing/")
+      ? route.split("/landing/")[1]
+      : null;
   const showCamera = showBagOverlay || showCameraPage;
   const mirrorCamera = showCameraPage;
+
+  // A previous bag canvas can remain referenced after route changes. Clear it
+  // so the next summon recording always starts from the live webcam layer.
+  useEffect(() => {
+    if (!showBagScene) webglCanvasRef.current = null;
+  }, [showBagScene]);
 
   useEffect(() => {
     const handlePopState = () => setRoute(window.location.pathname || "/");
@@ -271,6 +319,8 @@ export default function App() {
     setPublicId(session.public_id);
     window.sessionStorage.setItem("aura_public_id", session.public_id);
     analysisStartedRef.current = false;
+    recordingStartedRef.current = false;
+    outroCaptureTriggeredRef.current = false;
     setAnalysisReady(false);
     setAuraResult(DEFAULT_AURA_RESULT);
     setCameraPhase("scanning");
@@ -345,6 +395,18 @@ export default function App() {
   }, [cameraPhase, showCameraPage]);
 
   useEffect(() => {
+    if (
+      cameraPhase !== "particles" ||
+      recordingStartedRef.current ||
+      !publicIdRef.current
+    ) return;
+
+    recordingStartedRef.current = true;
+    beginExperienceRecording(publicIdRef.current);
+    captureSegment(5000);
+  }, [beginExperienceRecording, cameraPhase, captureSegment]);
+
+  useEffect(() => {
     if (!showCamera) {
       return undefined;
     }
@@ -392,19 +454,28 @@ export default function App() {
       context.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 
       const triggerOrbInjection = () => {
-        if (orbInjectionTriggeredRef.current) return;
+        if (orbInjectionTriggeredRef.current || orbSequenceLockedRef.current) return;
         orbInjectionTriggeredRef.current = true;
-        setBagInfused(true);
-        setOrb((current) => ({
-          ...current,
+        orbSequenceLockedRef.current = true;
+        setPhase("injecting");
+        const injectingOrb = {
+          ...orbRef.current,
+          visible: true,
           injecting: true,
           x: window.innerWidth / 2,
           y: window.innerHeight / 2,
-        }));
+        };
+        orbRef.current = injectingOrb;
+        setOrb(injectingOrb);
+        // 8–9.5s: orb push. 9.5–13s: color and pattern infuse into the bag.
+        captureSegment(5000);
         window.setTimeout(() => {
-          setOrb({ visible: false, injecting: false, x: 0, y: 0 });
-          setPhase(3);
-        }, 2000);
+          setBagInfused(true);
+          const hiddenOrb = { visible: false, injecting: false, x: 0, y: 0 };
+          orbRef.current = hiddenOrb;
+          setOrb(hiddenOrb);
+        }, 1500);
+        window.setTimeout(() => setPhase(3), 5000);
       };
 
       if (!particleStateRef.current?.particles?.length) {
@@ -456,7 +527,7 @@ export default function App() {
         const orbX = offsetX + (1 - midpoint.x) * drawWidth;
         const orbY = offsetY + midpoint.y * drawHeight;
 
-        if (!orbRef.current.visible && palmDistance < 0.22) {
+        if (!orbSequenceLockedRef.current && !orbRef.current.visible && palmDistance < 0.22) {
           if (orbGatherStartedAtRef.current === null) {
             orbGatherStartedAtRef.current = performance.now();
           }
@@ -622,7 +693,7 @@ export default function App() {
               currentMaterial.includes("bag") ||
               currentMaterial.includes("panel")
             )
-              speed = 0.38;
+              speed = 0.8;
             else if (
               currentMaterial.includes("zip") ||
               currentMaterial.includes("buckle") ||
@@ -635,7 +706,7 @@ export default function App() {
               currentMaterial.includes("handle") ||
               currentMaterial.includes("line")
             )
-              speed = 0.2;
+              speed = 0.65;
           }
 
           if (cursorRef.current.x === null) {
@@ -648,8 +719,8 @@ export default function App() {
             cursorRef.current.y = y;
           } else {
             // 보간 적용
-            cursorRef.current.x += (x - cursorRef.current.x) * (0.2 * speed);
-            cursorRef.current.y += (y - cursorRef.current.y) * (0.2 * speed);
+            cursorRef.current.x += (x - cursorRef.current.x) * (0.28 * speed);
+            cursorRef.current.y += (y - cursorRef.current.y) * (0.28 * speed);
           }
 
           handPosRef.current = {
@@ -679,13 +750,17 @@ export default function App() {
             Math.min(230, 260 - handSize * 600),
           );
 
-          setIsFistState(isFist);
-          setHandImagePos({
+          const nextHandImagePos = {
             x: cursorRef.current.x,
             y: cursorRef.current.y,
             visible: true,
-            width: isFist ? Math.max(100, dynamicWidth * 0.85) : dynamicWidth,
-          });
+            // rock2.png is a much taller source image than hand2.png, so it
+            // needs a smaller width to keep its visible hand size balanced.
+            width: isFist ? Math.max(62, dynamicWidth * 0.45) : dynamicWidth,
+            isFist,
+          };
+          handImageRef.current = nextHandImagePos;
+          setHandImagePos(nextHandImagePos);
 
           const rect = canvas.getBoundingClientRect();
           const clientX = rect.left + cursorRef.current.x;
@@ -746,7 +821,11 @@ export default function App() {
         }
       }
 
-      setHandImagePos((prev) => ({ ...prev, visible: false }));
+      setHandImagePos((prev) => {
+        const next = { ...prev, visible: false };
+        handImageRef.current = next;
+        return next;
+      });
       openHandStartedAtRef.current = null;
       setIsTracking(false);
     };
@@ -868,7 +947,7 @@ export default function App() {
         handLandmarker.close();
       }
     };
-  }, [showBagOverlay, showCamera, showCameraPage]);
+  }, [captureSegment, showBagOverlay, showCamera, showCameraPage]);
   
   if (isLandingPage) {
     return <LandingPage id={landingId} />;
@@ -881,7 +960,13 @@ export default function App() {
 
       {showBagScene && (
         <div className="scene-layer">
-          <Canvas camera={{ position: [0, 0, 5], fov: 50 }}>
+          <Canvas
+            camera={{ position: [0, 0, 5], fov: 50 }}
+            gl={{ preserveDrawingBuffer: true, alpha: true }}
+            onCreated={({ gl }) => {
+              webglCanvasRef.current = gl.domElement;
+            }}
+          >
             <ambientLight intensity={3.5} />
             <directionalLight position={[10, 10, 5]} intensity={3} />
 
@@ -897,14 +982,19 @@ export default function App() {
               setHoveredMaterial={(name) => {
                 hoveredMaterialRef.current = name;
               }}
+              onFirstBagInteraction={handleFirstBagInteraction}
+              onAccessoryAttached={handleAccessoryAttached}
             />
 
             <OrbitControls />
           </Canvas>
           <PhaseOverlay phase={phase} orbCreated={orb.visible} />
           <AuraOrbOverlay orb={orb} />
+          {recordingStatus === "uploading" && (
+            <span className="recording-status">영상 저장 중…</span>
+          )}
           <img
-            src={isFistState ? fistPhotoSrc : "/hand2.png"}
+            src={handImagePos.isFist ? fistPhotoSrc : "/hand2.png"}
             alt="Hand overlay"
             className="hand-image-overlay"
             style={{
@@ -928,6 +1018,7 @@ export default function App() {
         cameraPhase={showCameraPage ? cameraPhase : null}
         showReachPrompt={showCameraPage && showReachPrompt}
         auraResult={auraResult}
+        bagImageRef={cameraBagImageRef}
       />
 
       {showCamera && !showCameraPage && (

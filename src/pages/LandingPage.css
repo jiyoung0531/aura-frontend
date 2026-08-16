@@ -68,6 +68,19 @@
   font-weight: bold;
 }
 
+.experience-video {
+  width: calc(100% - 174px);
+  max-width: 216px;
+  aspect-ratio: 216 / 309;
+  object-fit: cover;
+  background: #000;
+}
+
+.video-section .primary-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .video-section .primary-btn {
   margin-top: 30px;
   width: calc(100% - 56px);

@@ -1,5 +1,5 @@
 export default function PhaseOverlay({ phase, orbCreated = false }) {
-  const isOrbPhase = phase === 'orb';
+  const isOrbPhase = phase === 'orb' || phase === 'injecting';
 
   return (
     <div className="phase-ui-overlay">
@@ -41,7 +41,7 @@ export default function PhaseOverlay({ phase, orbCreated = false }) {
   </div>
 )}
 
-      {isOrbPhase && (
+      {phase === 'orb' && (
         <div className="aura-gather-prompt">
           {orbCreated ? "오브를 밀어넣어보세요" : "손을 모아보세요"}
         </div>

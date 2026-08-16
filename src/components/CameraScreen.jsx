@@ -9,6 +9,7 @@ export default function CameraScreen({
   cameraPhase,
   showReachPrompt,
   auraResult,
+  bagImageRef,
 }) {
   const showAnalysis = cameraPhase === "result";
   const showScanStatus = cameraPhase === "scanning" || cameraPhase === "complete";
@@ -30,6 +31,7 @@ export default function CameraScreen({
           src="/mcmbag2D.png"
           alt="MCM bag"
           className="camera-bag-reveal"
+          ref={bagImageRef}
         />
       )}
       <canvas ref={canvasRef} className="tracking-canvas" />
