@@ -148,6 +148,7 @@ const drawParticleField = (context, width, height, particles, time) => {
 };
 
 export default function App() {
+  const [activeAccessoryId, setActiveAccessoryId] = useState(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const wasFistRef = useRef(false);
@@ -870,8 +871,18 @@ export default function App() {
     };
   }, [showBagOverlay, showCamera, showCameraPage]);
   
-  if (isLandingPage) {
+  /*if (isLandingPage) {
     return <LandingPage id={landingId} />;
+  }  색상 코드 전달을 위해 아래 코드로 대체 */
+
+  if (isLandingPage) {
+    return (
+      <LandingPage 
+        id={landingId} 
+        auraColors={auraResult.palette.map((item) => item.color).filter(Boolean)} 
+        mood={auraResult.mood || auraResult.style || "Street Energy"}
+      />
+    );
   }
 
   return (
@@ -901,7 +912,12 @@ export default function App() {
 
             <OrbitControls />
           </Canvas>
-          <PhaseOverlay phase={phase} orbCreated={orb.visible} />
+          <PhaseOverlay phase={phase} 
+          orbCreated={orb.visible}
+          publicId={publicId} 
+          auraColors={auraResult.palette.map((color) => color.color).filter(Boolean)} 
+          activeAccessoryId={activeAccessoryId} 
+          />
           <AuraOrbOverlay orb={orb} />
           <img
             src={isFistState ? fistPhotoSrc : "/hand2.png"}
@@ -936,7 +952,7 @@ export default function App() {
           <span>{isTracking ? "Aura Hand 추적 중" : statusText}</span>
         </div>
       )}
-        
+
     </div>
   );
 }

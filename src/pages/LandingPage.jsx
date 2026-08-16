@@ -3,37 +3,69 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import './LandingPage.css';
 
-export default function LandingPage({ id }) {
-  const [userData, setUserData] = useState(null);
+const today = new Intl.DateTimeFormat('ko-KR', { 
+  year: 'numeric', month: '2-digit', day: '2-digit' 
+}).format(new Date()).replace(/\./g, '.').slice(0, -1);
 
-  useEffect(() => {
-    // 백엔드 API가 완성 시 사용
-    /*
+// 더미 데이터
+const FALLBACK_DATA = {
+  bagName: "MCM Stark Backpack",
+  auraColors: ['#FFA1C5', '#707ABB', '#838383'],
+  mood: "Street Energy",
+  styling: "Silver Key Ring",
+  forgedAt: "MCM Cheongdam House",
+  date: today,
+  videoUrl: ""
+};
+
+export default function LandingPage({ id, auraColors, mood }) {
+
+  const [userData, setUserData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+useEffect(() => {
+    if (auraColors && auraColors.length > 0) {
+      console.log("카메라 색상 수신 완료:", auraColors);
+      setUserData({
+        ...FALLBACK_DATA,
+        auraColors: auraColors,
+        mood: mood
+      });
+      setIsLoading(false);
+      return; 
+    }
+
+   //  QR코드나 링크로 접속해서 백엔드에서 데이터를 가져올 때
     const fetchUserData = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/landing/${id}`);
+        console.log(` ${id} 데이터 요청 중...`);
+        const response = await fetch(`${import.meta.env.VITE_API_BASE}/landing/${id}`);
+        
+        if (!response.ok) throw new Error("서버에서 데이터를 찾을 수 없습니다.");
+        
         const data = await response.json();
-        setUserData(data);
+        setUserData(data); // 통신 성공
+        
       } catch (error) {
-        console.error("데이터 로딩 실패:", error);
+        console.warn(" API 호출 실패! 임시 데이터로 화면을 띄웁니다.", error);
+        setUserData(FALLBACK_DATA); // 통신 실패:
+      } finally {
+        setIsLoading(false);
       }
     };
-    if (id) fetchUserData();
-    */
 
-    // UI 구현을 위한 더미데이터
-    setUserData({
-      bagName: "MCM Stark Backpack",
-      auraColors: ["#FFA1C5", "#707ABB", "#838383"],
-      mood: "Street Energy",
-      styling: "Silver Key Ring",
-      forgedAt: "MCM Cheongdam House",
-      date: "2026. 07. 28",
-      videoUrl: "", // 임시 비디오 경로
-    });
-  }, [id]);
+    // id가 있으면 무조건 백엔드를 찔러봄
+    if (id) {
+      fetchUserData();
+    } else {
+      // id도 없고 auraColors도 없는 비정상 접근 시 에러 방지
+      setUserData(FALLBACK_DATA);
+      setIsLoading(false);
+    }
+  }, [id, auraColors]);
 
-  if (!userData) {
+  // 로딩 화면
+  if (isLoading || !userData) {
     return <div className="loading-screen">데이터를 불러오는 중입니다...</div>;
   }
 
@@ -64,12 +96,12 @@ export default function LandingPage({ id }) {
           <span className="info-label">Bag</span>
           <span className="info-value">{userData.bagName}</span>
 
-          <span className="info-label">Aura Code</span>
+       <span className="info-label">Aura Code</span>
           <div className="aura-colors">
             {userData.auraColors.map((color, index) => (
               <span key={index} className="color-item">
                 <span className="color-dot" style={{ backgroundColor: color }}></span>
-                <span className="color-text">{color}</span>
+                <span className="color-text">{color.toUpperCase()}</span>
               </span>
             ))}
           </div>
