@@ -12,35 +12,6 @@ const today = new Intl.DateTimeFormat("ko-KR", {
   .replace(/\./g, ".")
   .slice(0, -1);
 
-useEffect(() => {
-  let pollTimer;
-  let attempts = 0;
-  let cancelled = false;
-
-  const fetchUserData = async () => {
-    try {
-      const data = await getLanding(id);
-      if (cancelled) return;
-      setUserData(data);
-      if (
-        (data.video_status === "PENDING" ||
-          data.video_status === "UPLOADING") &&
-        attempts++ < 30
-      ) {
-        pollTimer = window.setTimeout(fetchUserData, 2000);
-      }
-    } catch (error) {
-      console.error("랜딩 데이터 로딩 실패:", error);
-    }
-  };
-
-  if (id) fetchUserData();
-  return () => {
-    cancelled = true;
-    window.clearTimeout(pollTimer);
-  };
-}, [id]);
-
 // 더미 데이터
 const FALLBACK_DATA = {
   bagName: "MCM Stark Backpack",
@@ -68,24 +39,27 @@ export default function LandingPage({ id, auraColors, mood }) {
       return;
     }
 
-    //  QR코드나 링크로 접속해서 백엔드에서 데이터를 가져올 때
+    let pollTimer;
+    let attempts = 0;
+    let cancelled = false;
+
+    // QR코드나 링크로 접속해서 백엔드에서 데이터를 가져올 때
     const fetchUserData = async () => {
       try {
-        console.log(` ${id} 데이터 요청 중...`);
-        const response = await fetch(
-          `${import.meta.env.VITE_API_BASE}/landing/${id}`,
-        );
-
-        if (!response.ok)
-          throw new Error("서버에서 데이터를 찾을 수 없습니다.");
-
-        const data = await response.json();
-        setUserData(data); // 통신 성공
+        const data = await getLanding(id);
+        if (cancelled) return;
+        setUserData(data);
+        if (
+          (data.video_status === "PENDING" || data.video_status === "UPLOADING") &&
+          attempts++ < 30
+        ) {
+          pollTimer = window.setTimeout(fetchUserData, 2000);
+        }
       } catch (error) {
-        console.warn(" API 호출 실패! 임시 데이터로 화면을 띄웁니다.", error);
-        setUserData(FALLBACK_DATA); // 통신 실패:
+        console.warn("랜딩 API 호출 실패, 임시 화면을 표시합니다.", error);
+        if (!cancelled) setUserData(FALLBACK_DATA);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
@@ -97,7 +71,11 @@ export default function LandingPage({ id, auraColors, mood }) {
       setUserData(FALLBACK_DATA);
       setIsLoading(false);
     }
-  }, [id, auraColors]);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(pollTimer);
+    };
+  }, [auraColors, id, mood]);
 
   // 로딩 화면
   if (isLoading || !userData) {
