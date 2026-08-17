@@ -17,16 +17,16 @@ const request = async (path, options = {}) => {
     headers: {
       "Content-Type": "application/json",
       "Cache-Control": "no-cache, no-store, must-revalidate",
-      "Pragma": "no-cache",
-      "Expires": "0",
+      Pragma: "no-cache",
+      Expires: "0",
       ...options.headers,
     },
   });
-  
+
   const text = await response.text();
   const body = text ? JSON.parse(text) : {};
 
-  if (!response.ok || (body.success === false)) {
+  if (!response.ok || body.success === false) {
     throw new AuraApiError(
       body.error?.code || "INTERNAL_ERROR",
       body.error?.message || "API 요청에 실패했습니다.",
@@ -40,7 +40,10 @@ const request = async (path, options = {}) => {
 export const createSession = () =>
   request("/sessions", {
     method: "POST",
-    body: JSON.stringify({ store_id: 1, consent_agreed: true }),
+    body: JSON.stringify({
+      store_id: 1,
+      consent_agreed: true,
+    }),
   });
 
 export const getAssetsManifest = () => request("/assets/manifest");
@@ -48,13 +51,17 @@ export const getAssetsManifest = () => request("/assets/manifest");
 export const analyzeAura = (publicId, imageBase64) =>
   request(`/sessions/${publicId}/analysis`, {
     method: "POST",
-    body: JSON.stringify({ image_base64: imageBase64 }),
+    body: JSON.stringify({
+      image_base64: imageBase64,
+    }),
   });
 
 export const updateSessionStatus = (publicId, status) =>
   request(`/sessions/${publicId}/status`, {
     method: "PATCH",
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({
+      status,
+    }),
   });
 
 export const requestVideoUpload = (publicId, durationMs = 10000) =>

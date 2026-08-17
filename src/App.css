@@ -69,9 +69,18 @@
 .consent-aura-mark {
   position: relative;
   display: grid;
+  grid-auto-flow: column;
+  grid-template-columns: 60px auto;
+  justify-content: center;
+  column-gap: clamp(16px, 1.3vw, 21px);
   width: clamp(160px, 18vw, 202px);
   height: clamp(160px, 18vw, 202px);
-  place-items: center;
+  align-items: center;
+}
+
+.camera-reach-prompt img {
+  width: 60px;
+  height: 60px;
 }
 
 .consent-aura-mark img:first-child {
@@ -329,8 +338,8 @@
   position: absolute;
   left: 75%;
   top: 47%;
-  z-index: 1;
-  width: min(15vw, 190px);
+  z-index: 3;
+  width: min(20vw, 250px);
   max-height: 72vh;
   object-fit: contain;
   opacity: 0;
@@ -648,24 +657,31 @@
 .camera-reach-prompt {
   position: absolute;
   left: 50%;
-  bottom: clamp(100px, 15vh, 180px);
+  top: 40.7vh;
   z-index: 4;
   display: grid;
-  width: min(74vw, 532px);
-  height: clamp(64px, 6.5vw, 78px);
-  place-items: center;
-  box-sizing: border-box;
-  border-radius: clamp(18px, 1.6vw, 23px);
-  background: rgba(243, 237, 227, 0.73);
-  color: #111;
+  justify-items: center;
+  gap: 8px;
+  color: #f3ede3;
   font-family: Pretendard, "Noto Sans KR", sans-serif;
-  font-size: clamp(24px, 2.5vw, 36px);
+  font-size: clamp(24px, 2.67vw, 32px);
   font-weight: 400;
   line-height: 1;
   white-space: nowrap;
   pointer-events: none;
   transform: translateX(-50%);
   animation: show-camera-prompt 0.25s ease-out both;
+}
+
+.camera-reach-prompt img {
+  width: clamp(72px, 7.87vw, 94px);
+  height: auto;
+  margin-bottom: clamp(18px, 2.3vh, 28px);
+}
+
+.camera-reach-prompt small {
+  font-size: clamp(16px, 1.67vw, 20px);
+  font-weight: 500;
 }
 
 @keyframes show-camera-prompt {
@@ -682,7 +698,7 @@
 
 @media (max-height: 600px) {
   .camera-reach-prompt {
-    bottom: 70px;
+    top: 34vh;
   }
 }
 
@@ -810,6 +826,110 @@
   transform: translateX(-50%);
 }
 
+.aura-gather-prompt.is-gather {
+  width: min(69.4vw, 533px);
+  height: clamp(98px, 10.25vh, 123px);
+  grid-auto-flow: column;
+  grid-template-columns: 58px auto;
+  justify-content: center;
+  column-gap: clamp(18px, 1.8vw, 28px);
+  text-align: left;
+}
+
+.aura-orb-gather-guidance {
+  position: absolute;
+  top: 40.87vh;
+  left: 50%;
+  z-index: 6;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  color: #f3ede3;
+  font-family: Pretendard, "Noto Sans KR", sans-serif;
+  font-size: clamp(24px, 2.67vw, 32px);
+  font-weight: 400;
+  line-height: 1;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: show-camera-prompt 0.25s ease-out both;
+}
+
+.aura-orb-gather-guidance img {
+  width: clamp(82px, 8.92vw, 107px);
+  height: auto;
+  margin-bottom: clamp(18px, 2.3vh, 28px);
+}
+
+.aura-orb-gather-guidance small {
+  font-size: clamp(16px, 1.67vw, 20px);
+  font-weight: 500;
+}
+
+.aura-orb-push-guidance {
+  position: absolute;
+  top: 40.79vh;
+  left: 50%;
+  z-index: 6;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  color: #f3ede3;
+  font-family: Pretendard, "Noto Sans KR", sans-serif;
+  font-size: clamp(24px, 2.67vw, 32px);
+  font-weight: 400;
+  line-height: 1;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: show-camera-prompt 0.25s ease-out both;
+}
+
+.aura-orb-push-guidance img {
+  width: clamp(86px, 9.34vw, 112px);
+  height: auto;
+  margin-bottom: clamp(18px, 2.3vh, 28px);
+}
+
+.aura-orb-push-guidance small {
+  font-size: clamp(16px, 1.67vw, 20px);
+  font-weight: 500;
+}
+
+.aura-gather-prompt.is-push {
+  width: min(69.4vw, 533px);
+  height: clamp(98px, 10.25vh, 123px);
+  grid-auto-flow: column;
+  grid-template-columns: 60px auto;
+  justify-content: center;
+  column-gap: clamp(18px, 1.8vw, 28px);
+  text-align: left;
+}
+
+.aura-gather-icon {
+  width: 58px;
+  height: 58px;
+}
+
+.aura-push-icon {
+  width: 60px;
+  height: 60px;
+}
+
+.aura-gather-copy {
+  display: grid;
+  gap: 3px;
+  color: #111;
+}
+
+.aura-gather-copy strong {
+  font: 400 clamp(27px, 3vw, 36px)/1 Pretendard, "Noto Sans KR", sans-serif;
+  white-space: nowrap;
+}
+
+.aura-gather-copy small {
+  font: 400 clamp(18px, 2vw, 24px)/1 Pretendard, "Noto Sans KR", sans-serif;
+  white-space: nowrap;
+}
+
 .aura-orb {
   position: absolute;
   z-index: 20;
@@ -837,22 +957,22 @@
 }
 
 .aura-orb-glow {
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.88) 0 15%, rgba(78, 222, 255, 0.48) 30%, rgba(0, 164, 210, 0.18) 54%, transparent 72%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.88) 0 15%, color-mix(in srgb, var(--orb-secondary) 60%, transparent) 30%, color-mix(in srgb, var(--orb-primary) 32%, transparent) 54%, transparent 72%);
   filter: blur(4px);
   animation: aura-orb-pulse 1.7s ease-in-out infinite alternate;
 }
 
 .aura-orb-core {
   inset: 22%;
-  background: radial-gradient(circle, rgba(255,255,255,0.92), rgba(199,249,255,0.32) 56%, transparent 72%);
+  background: radial-gradient(circle, rgba(255,255,255,0.92), color-mix(in srgb, var(--orb-secondary) 42%, transparent) 56%, transparent 72%);
 }
 
 .aura-orb-ring {
   inset: 7%;
-  border: 3px solid rgba(73, 224, 255, 0.52);
+  border: 3px solid color-mix(in srgb, var(--orb-primary) 62%, transparent);
   border-top-color: rgba(255, 255, 255, 0.84);
   border-right-color: transparent;
-  box-shadow: 0 0 15px rgba(48, 207, 255, 0.38);
+  box-shadow: 0 0 15px color-mix(in srgb, var(--orb-shadow) 48%, transparent);
 }
 
 .aura-orb-ring-one { transform: rotate(-24deg) scaleX(1.12) scaleY(0.64); animation: aura-orb-spin 2.8s linear infinite; }

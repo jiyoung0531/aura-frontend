@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { finalizeAuraSession } from "../../api/auraApi";
 import QrResultScreen from "./QrResultScreen";
-import { getAuraOutputStatus } from '../../api/auraApi';
+import { getAuraOutputStatus } from "../../api/auraApi";
 
 export default function PhaseOverlay({
   phase,
@@ -10,7 +10,7 @@ export default function PhaseOverlay({
   auraColors,
   activeAccessoryId,
   recorderStatus,
-  captureSegment
+  captureSegment,
 }) {
   const isOrbPhase = phase === "orb" || phase === "injecting";
 
@@ -29,7 +29,7 @@ export default function PhaseOverlay({
 
     if (captureSegment) {
       console.log("비디오 녹화 종료 명령 전달");
-      captureSegment(0, { finish: true }); 
+      captureSegment(0, { finish: true });
     } else {
       console.error("App.jsx에서 captureSegment 안 넘김");
     }
@@ -41,21 +41,26 @@ export default function PhaseOverlay({
       while (!qrUrl && attempts < 30) {
         attempts++;
         console.log(`백엔드 비디오 상태 확인 시도 중... (${attempts}/30)`);
-        
+
         try {
           const statusResult = await getAuraOutputStatus(publicId);
-          const videoStatus = statusResult?.video_status || statusResult?.data?.video_status;
+          const videoStatus =
+            statusResult?.video_status || statusResult?.data?.video_status;
 
           if (videoStatus === "READY") {
             console.log("비디오 준비 완료, Finalize 요청 전송...");
-            
-            const finalizeResult = await finalizeAuraSession(publicId, auraColors, activeAccessoryId);
+
+            const finalizeResult = await finalizeAuraSession(
+              publicId,
+              auraColors,
+              activeAccessoryId,
+            );
             console.log("Finalize 최종 응답:", finalizeResult);
 
-            qrUrl = 
-              finalizeResult?.data?.qr_image_url || 
-              finalizeResult?.qr_image_url || 
-              statusResult?.data?.qr_image_url || 
+            qrUrl =
+              finalizeResult?.data?.qr_image_url ||
+              finalizeResult?.qr_image_url ||
+              statusResult?.data?.qr_image_url ||
               statusResult?.qr_image_url;
 
             if (qrUrl) {
@@ -77,7 +82,6 @@ export default function PhaseOverlay({
         alert("QR 생성 시간이 초과되었습니다. 다시 시도해 주세요.");
         setIsGenerating(false);
       }
-
     } catch (error) {
       console.error("완료 처리 중 에러 발생:", error);
       alert("처리 중 오류가 발생했습니다.");
@@ -146,11 +150,20 @@ export default function PhaseOverlay({
         </div>
       )}
 
-      {phase === "orb" && (
-        <div className="aura-gather-prompt">
-          {orbCreated ? "오브를 밀어넣어보세요" : "손을 모아보세요"}
-        </div>
-      )}
+      {phase === "orb" &&
+        (orbCreated ? (
+          <div className="aura-orb-push-guidance">
+            <img src="/icons/press-bag.svg" alt="" />
+            <span>가방에 press하세요</span>
+            <small>Press on the bag</small>
+          </div>
+        ) : (
+          <div className="aura-orb-gather-guidance">
+            <img src="/icons/hands-praying-gather.svg" alt="" />
+            <span>손을 모아보세요</span>
+            <small>Gather your hands</small>
+          </div>
+        ))}
 
       {/* 하단 영역 */}
       <div className="bottom-banner">

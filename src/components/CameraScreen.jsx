@@ -129,7 +129,11 @@ export default function CameraScreen({
         </div>
       )}
       {showReachPrompt && (
-        <div className="camera-reach-prompt">손을 뻗어 보세요</div>
+        <div className="camera-reach-prompt">
+          <img src="/icons/extend-hand.svg" alt="" />
+          <span>손을 뻗어 보세요</span>
+          <small>Extend your hand</small>
+        </div>
       )}
     </div>
   );

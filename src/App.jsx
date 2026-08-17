@@ -7,10 +7,15 @@ import ConsentScreen from "./components/ConsentScreen";
 import AuraOrbOverlay from "./components/AuraOrbOverlay";
 import "./App.css";
 import PhaseOverlay from "./components/ui/PhaseOverlay";
-import { analyzeAura, createSession, getAssetsManifest, updateSessionStatus } from "./api/auraApi";
+import {
+  analyzeAura,
+  createSession,
+  getAssetsManifest,
+  updateSessionStatus,
+} from "./api/auraApi";
 import { useExperienceRecorder } from "./hooks/useExperienceRecorder";
-import LandingPage from './pages/LandingPage';
-import { attachAccessory } from './api/auraApi';
+import LandingPage from "./pages/LandingPage";
+import { attachAccessory } from "./api/auraApi";
 
 const INITIAL_BAG_YAW = Math.PI / 12;
 const INITIAL_BAG_PITCH = 0;
@@ -18,9 +23,24 @@ const DEFAULT_AURA_RESULT = {
   style: "Street",
   matchPercentage: 94,
   palette: [
-    { id: "street", imageSrc: "/aura-color-street.svg", color: "#8E5A3B", label: "Street brown" },
-    { id: "gold", imageSrc: "/aura-color-gold.svg", color: "#B99556", label: "Aura gold" },
-    { id: "white", imageSrc: "/aura-color-white.svg", color: "#F8F4EA", label: "Aura white" },
+    {
+      id: "street",
+      imageSrc: "/aura-color-street.svg",
+      color: "#8E5A3B",
+      label: "Street brown",
+    },
+    {
+      id: "gold",
+      imageSrc: "/aura-color-gold.svg",
+      color: "#B99556",
+      label: "Aura gold",
+    },
+    {
+      id: "white",
+      imageSrc: "/aura-color-white.svg",
+      color: "#F8F4EA",
+      label: "Aura white",
+    },
   ],
 };
 
@@ -100,9 +120,13 @@ const createParticleField = (
 
 const hexToRgba = (hex, alpha) => {
   const value = hex?.replace("#", "") || "FFFFFF";
-  const normalized = value.length === 3
-    ? value.split("").map((character) => character + character).join("")
-    : value;
+  const normalized =
+    value.length === 3
+      ? value
+          .split("")
+          .map((character) => character + character)
+          .join("")
+      : value;
   const integer = Number.parseInt(normalized, 16);
   if (Number.isNaN(integer)) return `rgba(255,255,255,${alpha})`;
   return `rgba(${(integer >> 16) & 255},${(integer >> 8) & 255},${integer & 255},${alpha})`;
@@ -125,7 +149,10 @@ const drawParticleField = (context, width, height, particles, time) => {
     // Hand tracking may run well below the recording frame rate. Scale movement
     // by elapsed time so the exported video keeps the intended particle speed.
     const previousTime = particle.lastUpdatedAt ?? time;
-    const frameScale = Math.min(4, Math.max(0.5, (time - previousTime) / (1000 / 60)));
+    const frameScale = Math.min(
+      4,
+      Math.max(0.5, (time - previousTime) / (1000 / 60)),
+    );
     particle.lastUpdatedAt = time;
     particle.angle += particle.angularSpeed * frameScale;
     particle.radius *= Math.pow(particle.radiusDecay, 3 * frameScale);
@@ -162,7 +189,10 @@ export default function App() {
 
   useEffect(() => {
     if (activeAccessoryId !== null && activeAccessoryId !== undefined) {
-      window.sessionStorage.setItem("aura_active_accessory_id", activeAccessoryId);
+      window.sessionStorage.setItem(
+        "aura_active_accessory_id",
+        activeAccessoryId,
+      );
     }
   }, [activeAccessoryId]);
 
@@ -170,7 +200,13 @@ export default function App() {
   const canvasRef = useRef(null);
   const webglCanvasRef = useRef(null);
   const cameraBagImageRef = useRef(null);
-  const handImageRef = useRef({ x: 0, y: 0, visible: false, width: 170, isFist: false });
+  const handImageRef = useRef({
+    x: 0,
+    y: 0,
+    visible: false,
+    width: 170,
+    isFist: false,
+  });
   const recordingStartedRef = useRef(false);
   const outroCaptureTriggeredRef = useRef(false);
   const wasFistRef = useRef(false);
@@ -255,17 +291,18 @@ export default function App() {
   const {
     begin: beginExperienceRecording,
     captureSegment,
+    captureEndCard,
     status: recordingStatus,
-  } =
-    useExperienceRecorder({
-      videoRef,
-      trackingCanvasRef: canvasRef,
-      webglCanvasRef,
-      bagImageRef: cameraBagImageRef,
-      orbRef,
-      handImageRef,
-      phaseRef,
-    });
+  } = useExperienceRecorder({
+    videoRef,
+    trackingCanvasRef: canvasRef,
+    webglCanvasRef,
+    bagImageRef: cameraBagImageRef,
+    orbRef,
+    handImageRef,
+    phaseRef,
+    auraPalette: auraResult.palette.map((color) => color.color).filter(Boolean),
+  });
 
   const handleFirstBagInteraction = useCallback(() => {
     // 2–5 seconds: keep one three-second bag exploration clip.
@@ -275,9 +312,12 @@ export default function App() {
   const handleAccessoryAttached = useCallback(() => {
     if (outroCaptureTriggeredRef.current) return;
     outroCaptureTriggeredRef.current = true;
-    // 13–15 seconds: only the bag with the visitor's selected keyring appears.
-    captureSegment(2000, { thumbnail: true, finish: true });
-  }, [captureSegment]);
+    // 13–15s: completed bag / thumbnail. 15–17s: AURA end card.
+    captureSegment(2000, {
+      thumbnail: true,
+      onComplete: () => captureEndCard(2000),
+    });
+  }, [captureEndCard, captureSegment]);
 
   useEffect(() => {
     let cancelled = false;
@@ -286,8 +326,12 @@ export default function App() {
       .then((manifest) => {
         if (cancelled) return;
         setAssetManifest(manifest);
-        Object.values(manifest.patterns || {}).forEach((url) => useTexture.preload(url));
-        Object.values(manifest.hands || {}).forEach((url) => useTexture.preload(url));
+        Object.values(manifest.patterns || {}).forEach((url) =>
+          useTexture.preload(url),
+        );
+        Object.values(manifest.hands || {}).forEach((url) =>
+          useTexture.preload(url),
+        );
       })
       .catch((error) => console.error("Asset manifest preload failed:", error));
 
@@ -300,7 +344,8 @@ export default function App() {
   const showBagScene = route === "/bag";
   const showBagOverlay = route === "/bag";
   const showCameraPage = route === "/camera";
-  const isLandingPage = route.startsWith("/landing/") || route.startsWith("/s/");
+  const isLandingPage =
+    route.startsWith("/landing/") || route.startsWith("/s/");
   const landingId = route.startsWith("/s/")
     ? route.split("/s/")[1]
     : route.startsWith("/landing/")
@@ -415,7 +460,8 @@ export default function App() {
       cameraPhase !== "particles" ||
       recordingStartedRef.current ||
       !publicIdRef.current
-    ) return;
+    )
+      return;
 
     recordingStartedRef.current = true;
     beginExperienceRecording(publicIdRef.current);
@@ -470,7 +516,8 @@ export default function App() {
       context.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 
       const triggerOrbInjection = () => {
-        if (orbInjectionTriggeredRef.current || orbSequenceLockedRef.current) return;
+        if (orbInjectionTriggeredRef.current || orbSequenceLockedRef.current)
+          return;
         orbInjectionTriggeredRef.current = true;
         orbSequenceLockedRef.current = true;
         setPhase("injecting");
@@ -519,7 +566,9 @@ export default function App() {
       if (phaseRef.current === "orb" && hands.length >= 2) {
         const getPalmCenter = (hand) => {
           const palmIndexes = [0, 5, 9, 13, 17];
-          const points = palmIndexes.map((index) => hand[index]).filter(Boolean);
+          const points = palmIndexes
+            .map((index) => hand[index])
+            .filter(Boolean);
           return points.reduce(
             (center, point) => ({
               x: center.x + point.x / points.length,
@@ -543,7 +592,11 @@ export default function App() {
         const orbX = offsetX + (1 - midpoint.x) * drawWidth;
         const orbY = offsetY + midpoint.y * drawHeight;
 
-        if (!orbSequenceLockedRef.current && !orbRef.current.visible && palmDistance < 0.22) {
+        if (
+          !orbSequenceLockedRef.current &&
+          !orbRef.current.visible &&
+          palmDistance < 0.22
+        ) {
           if (orbGatherStartedAtRef.current === null) {
             orbGatherStartedAtRef.current = performance.now();
           }
@@ -560,7 +613,6 @@ export default function App() {
         } else if (!orbRef.current.visible) {
           orbGatherStartedAtRef.current = null;
         }
-
       }
 
       if (
@@ -682,19 +734,19 @@ export default function App() {
           }
           // debug: log fist detection
           if (phaseRef.current !== 3) {
-          console.log(
-            "App: rawFist=",
-            rawFist,
-            "isFist=",
-            isFist,
-            "confidence=",
-            fistConfidenceRef.current.toFixed(2),
-            "fingerTipsCount=",
-            fingerTips.length,
-            "threshold=",
-            fistThreshold.toFixed(3),
-          );
-        }
+            console.log(
+              "App: rawFist=",
+              rawFist,
+              "isFist=",
+              isFist,
+              "confidence=",
+              fistConfidenceRef.current.toFixed(2),
+              "fingerTipsCount=",
+              fingerTips.length,
+              "threshold=",
+              fistThreshold.toFixed(3),
+            );
+          }
 
           const x = offsetX + (1 - rawX) * drawWidth;
           const y = offsetY + rawY * drawHeight;
@@ -901,9 +953,15 @@ export default function App() {
           analysisStartedRef.current = true;
           void (async () => {
             try {
+              // Keep the analysis screen visible long enough for the intended
+              // introduction, then capture the frame for the real API call.
+              await new Promise((resolve) => window.setTimeout(resolve, 3000));
+              if (cancelled) return;
               const sessionPublicId = publicIdRef.current;
               if (!sessionPublicId) {
-                throw new Error("분석 세션이 없습니다. 동의 화면부터 다시 시작해 주세요.");
+                throw new Error(
+                  "분석 세션이 없습니다. 동의 화면부터 다시 시작해 주세요.",
+                );
               }
               const analysis = await analyzeAura(
                 sessionPublicId,
@@ -966,16 +1024,18 @@ export default function App() {
       }
     };
   }, [captureSegment, showBagOverlay, showCamera, showCameraPage]);
-  
+
   /*if (isLandingPage) {
     return <LandingPage id={landingId} />;
   }  색상 코드 전달을 위해 아래 코드로 대체 */
 
   if (isLandingPage) {
     return (
-      <LandingPage 
-        id={landingId} 
-        auraColors={auraResult.palette.map((item) => item.color).filter(Boolean)} 
+      <LandingPage
+        id={landingId}
+        auraColors={auraResult.palette
+          .map((item) => item.color)
+          .filter(Boolean)}
         mood={auraResult.mood || auraResult.style || "Street Energy"}
         activeAccessoryId={activeAccessoryId}
       />
@@ -984,7 +1044,6 @@ export default function App() {
 
   return (
     <div className="app-shell">
-   
       {showConsentPage && <ConsentScreen onStart={handleConsentStart} />}
 
       {showBagScene && (
@@ -1002,12 +1061,14 @@ export default function App() {
             <McmBag
               currentMood={auraResult.mood?.toLowerCase() || "street"}
               assetPatterns={assetManifest?.patterns}
-              auraPalette={auraResult.palette.map((color) => color.color).filter(Boolean)}
+              auraPalette={auraResult.palette
+                .map((color) => color.color)
+                .filter(Boolean)}
               isInfused={bagInfused}
               rotation={[bagPitch, bagYaw, 0]}
               phase={phase}
               handPosRef={handPosRef}
-              activeAccessory={activeAccessoryId} 
+              activeAccessory={activeAccessoryId}
               setActiveAccessory={setActiveAccessoryId}
               sessionPublicId={publicId}
               setHoveredMaterial={(name) => {
@@ -1019,16 +1080,24 @@ export default function App() {
 
             <OrbitControls />
           </Canvas>
-          <PhaseOverlay phase={phase} 
-          orbCreated={orb.visible}
-          publicId={publicId} 
-          auraColors={auraResult.palette.map((color) => color.color).filter(Boolean)} 
-          activeAccessoryId={activeAccessoryId}
-          //recorderStatus={status}
-          recorderStatus={recordingStatus}
-          captureSegment={captureSegment}
+          <PhaseOverlay
+            phase={phase}
+            orbCreated={orb.visible}
+            publicId={publicId}
+            auraColors={auraResult.palette
+              .map((color) => color.color)
+              .filter(Boolean)}
+            activeAccessoryId={activeAccessoryId}
+            //recorderStatus={status}
+            recorderStatus={recordingStatus}
+            captureSegment={captureSegment}
           />
-          <AuraOrbOverlay orb={orb} />
+          <AuraOrbOverlay
+            orb={orb}
+            palette={auraResult.palette
+              .map((color) => color.color)
+              .filter(Boolean)}
+          />
           {recordingStatus === "uploading" && (
             <span className="recording-status">영상 저장 중…</span>
           )}
@@ -1066,7 +1135,6 @@ export default function App() {
           <span>{isTracking ? "Aura Hand 추적 중" : statusText}</span>
         </div>
       )}
-
     </div>
   );
 }
