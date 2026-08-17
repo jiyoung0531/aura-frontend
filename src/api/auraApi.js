@@ -16,12 +16,17 @@ const request = async (path, options = {}) => {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0",
       ...options.headers,
     },
   });
-  const body = await response.json();
+  
+  const text = await response.text();
+  const body = text ? JSON.parse(text) : {};
 
-  if (!body.success) {
+  if (!response.ok || (body.success === false)) {
     throw new AuraApiError(
       body.error?.code || "INTERNAL_ERROR",
       body.error?.message || "API 요청에 실패했습니다.",
@@ -29,7 +34,7 @@ const request = async (path, options = {}) => {
     );
   }
 
-  return body.data;
+  return body.data !== undefined ? body.data : body;
 };
 
 export const createSession = () =>
@@ -70,29 +75,20 @@ export const completeVideoUpload = (publicId, payload) =>
 
 export const getLanding = (publicId) => request(`/landing/${publicId}`);
 
-export const finalizeAuraSession = async (
-  publicId,
-  auraColors,
-  accessoryId,
-) => {
-  try {
-    const response = await fetch(
-      `${import.meta.env.VITE_API_BASE}/sessions/${publicId}/outputs/finalize`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          aura_code: auraColors,
-          attached_accessory_id: accessoryId || null,
-        }),
-      },
-    );
+export const finalizeAuraSession = (publicId, auraColors, accessoryId) =>
+  request(`/sessions/${publicId}/outputs/finalize`, {
+    method: "POST",
+    body: JSON.stringify({
+      aura_code: auraColors,
+      attached_accessory_id: accessoryId ? Number(accessoryId) : null,
+    }),
+  });
 
-    if (!response.ok) {
-      throw new Error("QR 코드 생성 실패");
-    }
+export const getAuraOutputStatus = (publicId) =>
+  request(`/sessions/${publicId}/outputs`, {
+    method: "GET",
+  });
+
 
     const result = await response.json();
     console.log("백엔드가 보낸 진짜 응답:", result);
@@ -120,3 +116,8 @@ export const getAuraOutputStatus = async (publicId) => {
     throw error;
   }
 };
+
+export const attachAccessory = (publicId, productId) =>
+  request(`/sessions/${publicId}/accessories/${productId}/attach`, {
+    method: "POST",
+  });
