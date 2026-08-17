@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { finalizeAuraSession } from "../../api/auraApi";
 import QrResultScreen from "./QrResultScreen";
+import { getAuraOutputStatus } from '../../api/auraApi';
 
 export default function PhaseOverlay({
   phase,
@@ -8,33 +9,104 @@ export default function PhaseOverlay({
   publicId,
   auraColors,
   activeAccessoryId,
+  recorderStatus,
+  captureSegment
 }) {
   const isOrbPhase = phase === "orb" || phase === "injecting";
 
   const [qrImageUrl, setQrImageUrl] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  const hasStartedRef = useRef(false);
+
+  useEffect(() => {
+    console.log("현재 영상 상태:", recorderStatus);
+
+    if (recorderStatus !== "complete") return;
+    if (hasStartedRef.current) return; 
+    hasStartedRef.current = true;
+
+    let isCancelled = false;
+    let timerId = null;
+
+    console.log("영상 업로드 완료");
+
+    const checkStatus = async () => {
+      if (isCancelled) return;
+
+      try {
+        const statusResult = await getAuraOutputStatus(publicId);
+        if (isCancelled) return;
+
+        console.log("백엔드 상태 응답:", statusResult);
+
+        const videoStatus = statusResult?.video_status || statusResult?.data?.video_status;
+
+        if (videoStatus === "READY") {
+          console.log("비디오 준비 완료");
+
+          try {
+            const finalizeResult = await finalizeAuraSession(publicId, auraColors, activeAccessoryId);
+            if (isCancelled) return;
+            console.log("Finalize 최종 응답:", finalizeResult);
+
+            const qrUrl = 
+              finalizeResult?.data?.qr_image_url || 
+              finalizeResult?.qr_image_url || 
+              statusResult?.data?.qr_image_url || 
+              statusResult?.qr_image_url;
+
+            if (qrUrl) {
+              console.log("QR 생성 완료", qrUrl);
+              setQrImageUrl(qrUrl);
+              setIsGenerating(false);
+              return; // 성공 시 폴링 완전 종료
+            }
+          } catch (finError) {
+            console.log("Finalize 아직 처리 중 (재시도 예정)...", finError);
+          }
+
+          // 주소가 아직 없다면 2초 뒤 재시도 예약
+          if (!isCancelled) {
+            timerId = setTimeout(checkStatus, 2000);
+          }
+        } else {
+          console.log("영상 가공 중");
+          if (!isCancelled) {
+            timerId = setTimeout(checkStatus, 3000);
+          }
+        }
+      } catch (error) {
+        console.error("상태 확인 중 에러 발생 (재시도 중):", error);
+        if (!isCancelled) {
+          timerId = setTimeout(checkStatus, 3000);
+        }
+      }
+    };
+
+    checkStatus(); 
+
+    return () => {
+      isCancelled = true;
+      if (timerId) clearTimeout(timerId);
+    };
+  }, [recorderStatus, publicId]); 
+
   const handleCompleteClick = async () => {
     setIsGenerating(true);
-    try {
-      console.log("전송 데이터 확인:", {
-        publicId: publicId,
-        auraColors: auraColors,
-        activeAccessoryId: activeAccessoryId,
-      });
 
-      const data = await finalizeAuraSession(
-        publicId,
-        auraColors,
-        activeAccessoryId,
-      );
-      setQrImageUrl(data.qr_image_url);
-    } catch (error) {
-      console.error("에러 상세 내용:", error);
-      alert("QR 코드 생성에 실패했습니다. 다시 시도해 주세요.");
-    } finally {
-      setIsGenerating(false);
+    if (captureSegment) {
+      console.log("비디오 녹화 종료 명령 전달");
+      captureSegment(0, { finish: true }); 
+    } else {
+      console.error("App.jsx에서 captureSegment 안 넘김");
     }
+
+    console.log("전송 대기 데이터 확인:", {
+      publicId: publicId,
+      auraColors: auraColors,
+      activeAccessoryId: activeAccessoryId,
+    });
   };
 
   if (qrImageUrl) {

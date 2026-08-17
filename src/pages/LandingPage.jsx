@@ -137,7 +137,6 @@ export default function LandingPage({ id, auraColors, mood }) {
 
       {/* 3. AURA 카드 결과 영역 */}
       <section className="aura-card">
-        <h3>FORGED BY YOUR AURA</h3>
 
         <div className="info-grid">
           <span className="info-label">Bag</span>

@@ -103,3 +103,22 @@ export const finalizeAuraSession = async (
     throw error;
   }
 };
+
+export const getAuraOutputStatus = async (publicId) => {
+  try {
+    const response = await fetch(`${import.meta.env.VITE_API_BASE}/sessions/${publicId}/outputs`, {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      throw new Error("상태 조회에 실패했습니다.");
+    }
+
+    const result = await response.json();
+    return result.data ? result.data : result;
+    
+  } catch (error) {
+    console.error("상태 조회 중 오류 발생:", error);
+    throw error;
+  }
+};
