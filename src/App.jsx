@@ -10,6 +10,7 @@ import PhaseOverlay from "./components/ui/PhaseOverlay";
 import { analyzeAura, createSession, getAssetsManifest, updateSessionStatus } from "./api/auraApi";
 import { useExperienceRecorder } from "./hooks/useExperienceRecorder";
 import LandingPage from './pages/LandingPage';
+import { attachAccessory } from './api/auraApi';
 
 const INITIAL_BAG_YAW = Math.PI / 12;
 const INITIAL_BAG_PITCH = 0;
@@ -154,7 +155,17 @@ const drawParticleField = (context, width, height, particles, time) => {
 };
 
 export default function App() {
-  const [activeAccessoryId, setActiveAccessoryId] = useState(1);
+  const [activeAccessoryId, setActiveAccessoryId] = useState(() => {
+    window.sessionStorage.removeItem("aura_active_accessory_id");
+    return null;
+  });
+
+  useEffect(() => {
+    if (activeAccessoryId !== null && activeAccessoryId !== undefined) {
+      window.sessionStorage.setItem("aura_active_accessory_id", activeAccessoryId);
+    }
+  }, [activeAccessoryId]);
+
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const webglCanvasRef = useRef(null);
@@ -240,6 +251,7 @@ export default function App() {
   );
   const publicIdRef = useRef(publicId);
   const analysisStartedRef = useRef(false);
+
   const {
     begin: beginExperienceRecording,
     captureSegment,
@@ -315,6 +327,9 @@ export default function App() {
       window.__auraAudioContext ||= new AudioContext();
       void window.__auraAudioContext.resume();
     }
+    window.sessionStorage.removeItem("aura_active_accessory_id");
+    setActiveAccessoryId(null);
+
     const session = await createSession();
     publicIdRef.current = session.public_id;
     setPublicId(session.public_id);
@@ -962,6 +977,7 @@ export default function App() {
         id={landingId} 
         auraColors={auraResult.palette.map((item) => item.color).filter(Boolean)} 
         mood={auraResult.mood || auraResult.style || "Street Energy"}
+        activeAccessoryId={activeAccessoryId}
       />
     );
   }
@@ -991,6 +1007,8 @@ export default function App() {
               rotation={[bagPitch, bagYaw, 0]}
               phase={phase}
               handPosRef={handPosRef}
+              activeAccessory={activeAccessoryId} 
+              setActiveAccessory={setActiveAccessoryId}
               sessionPublicId={publicId}
               setHoveredMaterial={(name) => {
                 hoveredMaterialRef.current = name;
@@ -1005,7 +1023,7 @@ export default function App() {
           orbCreated={orb.visible}
           publicId={publicId} 
           auraColors={auraResult.palette.map((color) => color.color).filter(Boolean)} 
-          activeAccessoryId={activeAccessoryId} 
+          activeAccessoryId={activeAccessoryId}
           //recorderStatus={status}
           recorderStatus={recordingStatus}
           captureSegment={captureSegment}

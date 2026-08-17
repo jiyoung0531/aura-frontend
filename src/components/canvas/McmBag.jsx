@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { useGLTF, useTexture } from '@react-three/drei';
 import { Accessory } from './Accessory';
 import { useInteractionRecorder } from '../../hooks/useInteractionRecorder';
+import { attachAccessory } from '../../api/auraApi';
 
 const BAG_MODEL_URL = '/models/mcm_final_8.glb';
 const TEXTURE_URLS = {
@@ -36,6 +37,8 @@ export function McmBag({
   setHoveredMaterial,
   onFirstBagInteraction,
   onAccessoryAttached,
+  activeAccessory,
+  setActiveAccessory,
 }) {
   const { scene } = useGLTF(BAG_MODEL_URL);
   const textureUrls = useMemo(
@@ -67,8 +70,6 @@ export function McmBag({
   const [isBagTilted, setIsBagTilted] = useState(false);
   const tiltTimeoutRef = useRef(null);
   const bagInteractionRecordedRef = useRef(false);
-
-  const [activeAccessory, setActiveAccessory] = useState(null);
 
   // 이벤트 트래킹 훅 연결
   const { markOrigin, enter, exit, addRotation, flush } = useInteractionRecorder(sessionPublicId, phase);
@@ -384,9 +385,24 @@ export function McmBag({
               attachmentRotation={[0, Math.PI / 4, 0]}
               scale={3.5}
               attachSoundUrl="/sounds/original_sound.mp3"
-             //onToggleAttach={handleToggleAttach}
-             isAttached={activeAccessory === 'keyring'}
-             onToggleAttach={() => setActiveAccessory(activeAccessory === 'keyring' ? null : 'keyring')}
+              isAttached={activeAccessory === 1}
+              onToggleAttach={() => {
+                const next = activeAccessory === 1 ? null : 1;
+                handleToggleAttach(next !== null);
+                setActiveAccessory(next);
+
+                if (next === 1) {
+                  window.sessionStorage.setItem("aura_active_accessory_id", "1");
+                } else {
+                  window.sessionStorage.removeItem("aura_active_accessory_id");
+                }
+
+                if (sessionPublicId && next === 1) {
+                  attachAccessory(sessionPublicId, 1)
+                    .then(() => console.log("[API 전송] 1번 오리지널 키링 부착 성공!"))
+                    .catch((err) => console.error(err));
+                }
+              }}
             />
           </group>
 
@@ -414,9 +430,24 @@ export function McmBag({
               attachmentRotation={[0, -Math.PI / 2, 0]}
               scale={3.5}
               attachSoundUrl="/sounds/teddy_sound.mp3"
-              isAttached={activeAccessory === 'charm'}
-              onToggleAttach={() => setActiveAccessory(activeAccessory === 'charm' ? null : 'charm')}
-             // onToggleAttach={handleToggleAttach}
+              isAttached={activeAccessory === 2}
+              onToggleAttach={() => {
+                const next = activeAccessory === 2 ? null : 2;
+                handleToggleAttach(next !== null);
+                setActiveAccessory(next);
+
+                if (next === 2) {
+                  window.sessionStorage.setItem("aura_active_accessory_id", "2");
+                } else {
+                  window.sessionStorage.removeItem("aura_active_accessory_id");
+                }
+
+                if (sessionPublicId && next === 2) {
+                  attachAccessory(sessionPublicId, 2)
+                    .then(() => console.log("[API 전송] 2번 곰돌이 키링 부착 성공!"))
+                    .catch((err) => console.error(err));
+                }
+              }}
             />
           </group>
         </>
