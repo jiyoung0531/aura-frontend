@@ -1,13 +1,15 @@
 import { useRef, useCallback, useEffect } from 'react';
 
-const API_BASE = import.meta.env.VITE_API_BASE;
+const API_BASE =
+  import.meta.env.VITE_API_BASE ||
+  'https://aura-backend-877724382169.asia-northeast3.run.app/api';
 
 const MIN_DWELL_MS = 150;
 
 /* PRESS 완료 기준 -2초 */
 const PRESS_COMPLETE_MS = 2000;
 
-export function useInteractionRecorder(publicId) {
+export function useInteractionRecorder(publicId, phase) {
   const bufferRef = useRef([]);      // 전송 대기 이벤트
   const seqRef = useRef(0);          
   const activeRef = useRef(null);    // 현재 추적 구간
@@ -19,6 +21,11 @@ export function useInteractionRecorder(publicId) {
   }, []);
 
   const exit = useCallback(() => {
+    if (phase === 3 || phase === '3') {
+      activeRef.current = null;
+      return;
+    }
+
     const cur = activeRef.current;
     if (!cur) return;
     activeRef.current = null;
@@ -41,10 +48,12 @@ export function useInteractionRecorder(publicId) {
     };
 
     bufferRef.current.push(event);
-  }, []);
+  }, [phase]);
 
   /* 대상 진입 */
   const enter = useCallback((desc) => {
+    if (phase === 3 || phase === '3') return;
+
     const cur = activeRef.current;
     const isSame =
       cur &&
@@ -56,17 +65,23 @@ export function useInteractionRecorder(publicId) {
 
     exit(); 
     activeRef.current = { ...desc, startedAt: performance.now(), rotationDeg: 0 };
-  }, [exit]);
+  }, [exit,phase]);
 
   const addRotation = useCallback((degDiff) => {
     if (activeRef.current && activeRef.current.gesture === 'ROTATE') {
       activeRef.current.rotationDeg += Math.abs(degDiff);
     }
-  }, []);
+  }, [phase]);
 
   /* 버퍼 데이터 전송 */
   const flush = useCallback(async () => {
+    if (phase === 3 || phase === '3') {
+      bufferRef.current = [];
+      return;
+    }
+  
     exit();
+    if (!publicId) return;
     const events = bufferRef.current;
     if (events.length === 0) return;
 
@@ -82,10 +97,10 @@ export function useInteractionRecorder(publicId) {
     } catch (error) {
       console.error("이벤트 전송 실패:", error);
     }
-  }, [publicId, exit]);
+  }, [publicId, exit, phase]);
 
   useEffect(() => {
-    if (!publicId) return;
+    if (!publicId || phase === 3 || phase === '3') return;
 
     const onHide = () => {
       exit();
@@ -100,12 +115,13 @@ export function useInteractionRecorder(publicId) {
 
     window.addEventListener('pagehide', onHide);
     return () => window.removeEventListener('pagehide', onHide);
-  }, [publicId, exit]);
+  }, [publicId, exit, phase]);
 
   const handleAbandon = useCallback(async () => {
+    if (phase === 3 || phase === '3') return;
     await flush();
     await fetch(`${API_BASE}/sessions/${publicId}/abandon`, { method: 'POST' });
-  }, [flush, publicId]);
+  }, [flush, publicId, phase]);
 
   return { markOrigin, enter, exit, addRotation, flush, handleAbandon };
 }
