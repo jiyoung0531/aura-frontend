@@ -17,16 +17,16 @@ const request = async (path, options = {}) => {
     headers: {
       "Content-Type": "application/json",
       "Cache-Control": "no-cache, no-store, must-revalidate",
-      "Pragma": "no-cache",
-      "Expires": "0",
+      Pragma: "no-cache",
+      Expires: "0",
       ...options.headers,
     },
   });
-  
+
   const text = await response.text();
   const body = text ? JSON.parse(text) : {};
 
-  if (!response.ok || (body.success === false)) {
+  if (!response.ok || body.success === false) {
     throw new AuraApiError(
       body.error?.code || "INTERNAL_ERROR",
       body.error?.message || "API 요청에 실패했습니다.",
@@ -40,7 +40,10 @@ const request = async (path, options = {}) => {
 export const createSession = () =>
   request("/sessions", {
     method: "POST",
-    body: JSON.stringify({ store_id: 1, consent_agreed: true }),
+    body: JSON.stringify({
+      store_id: 1,
+      consent_agreed: true,
+    }),
   });
 
 export const getAssetsManifest = () => request("/assets/manifest");
@@ -48,13 +51,17 @@ export const getAssetsManifest = () => request("/assets/manifest");
 export const analyzeAura = (publicId, imageBase64) =>
   request(`/sessions/${publicId}/analysis`, {
     method: "POST",
-    body: JSON.stringify({ image_base64: imageBase64 }),
+    body: JSON.stringify({
+      image_base64: imageBase64,
+    }),
   });
 
 export const updateSessionStatus = (publicId, status) =>
   request(`/sessions/${publicId}/status`, {
     method: "PATCH",
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({
+      status,
+    }),
   });
 
 export const requestVideoUpload = (publicId, durationMs = 10000) =>
@@ -88,34 +95,6 @@ export const getAuraOutputStatus = (publicId) =>
   request(`/sessions/${publicId}/outputs`, {
     method: "GET",
   });
-
-
-    const result = await response.json();
-    console.log("백엔드가 보낸 진짜 응답:", result);
-    return result.data ? result.data : result;
-  } catch (error) {
-    console.error("QR 코드 생성 중 오류 발생:", error);
-    throw error;
-  }
-};
-
-export const getAuraOutputStatus = async (publicId) => {
-  try {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE}/sessions/${publicId}/outputs`, {
-      method: "GET",
-    });
-
-    if (!response.ok) {
-      throw new Error("상태 조회에 실패했습니다.");
-    }
-
-    const result = await response.json();
-    return result.data ? result.data : result;
-  } catch (error) {
-    console.error("상태 조회 중 오류 발생:", error);
-    throw error;
-  }
-};
 
 export const attachAccessory = (publicId, productId) =>
   request(`/sessions/${publicId}/accessories/${productId}/attach`, {
