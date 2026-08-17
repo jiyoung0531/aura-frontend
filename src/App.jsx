@@ -154,7 +154,7 @@ const drawParticleField = (context, width, height, particles, time) => {
 };
 
 export default function App() {
-  const [activeAccessoryId, setActiveAccessoryId] = useState(null);
+  const [activeAccessoryId, setActiveAccessoryId] = useState(1);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const webglCanvasRef = useRef(null);
@@ -666,6 +666,7 @@ export default function App() {
             }
           }
           // debug: log fist detection
+          if (phaseRef.current !== 3) {
           console.log(
             "App: rawFist=",
             rawFist,
@@ -678,6 +679,7 @@ export default function App() {
             "threshold=",
             fistThreshold.toFixed(3),
           );
+        }
 
           const x = offsetX + (1 - rawX) * drawWidth;
           const y = offsetY + rawY * drawHeight;
@@ -1004,6 +1006,9 @@ export default function App() {
           publicId={publicId} 
           auraColors={auraResult.palette.map((color) => color.color).filter(Boolean)} 
           activeAccessoryId={activeAccessoryId} 
+          //recorderStatus={status}
+          recorderStatus={recordingStatus}
+          captureSegment={captureSegment}
           />
           <AuraOrbOverlay orb={orb} />
           {recordingStatus === "uploading" && (

@@ -71,7 +71,7 @@ export function McmBag({
   const [activeAccessory, setActiveAccessory] = useState(null);
 
   // 이벤트 트래킹 훅 연결
-  const { markOrigin, enter, exit, addRotation, flush } = useInteractionRecorder(sessionPublicId);
+  const { markOrigin, enter, exit, addRotation, flush } = useInteractionRecorder(sessionPublicId, phase);
   const prevRotY = useRef(rotation[1]);
 
   const handleToggleAttach = (attached) => {
