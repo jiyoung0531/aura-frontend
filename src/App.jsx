@@ -154,7 +154,7 @@ const drawParticleField = (context, width, height, particles, time) => {
 };
 
 export default function App() {
-  const [activeAccessoryId, setActiveAccessoryId] = useState(1);
+  const [activeAccessoryId] = useState(1);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const webglCanvasRef = useRef(null);
@@ -243,6 +243,7 @@ export default function App() {
   const {
     begin: beginExperienceRecording,
     captureSegment,
+    captureEndCard,
     status: recordingStatus,
   } =
     useExperienceRecorder({
@@ -253,6 +254,7 @@ export default function App() {
       orbRef,
       handImageRef,
       phaseRef,
+      auraPalette: auraResult.palette.map((color) => color.color).filter(Boolean),
     });
 
   const handleFirstBagInteraction = useCallback(() => {
@@ -263,9 +265,12 @@ export default function App() {
   const handleAccessoryAttached = useCallback(() => {
     if (outroCaptureTriggeredRef.current) return;
     outroCaptureTriggeredRef.current = true;
-    // 13–15 seconds: only the bag with the visitor's selected keyring appears.
-    captureSegment(2000, { thumbnail: true, finish: true });
-  }, [captureSegment]);
+    // 13–15s: completed bag / thumbnail. 15–17s: AURA end card.
+    captureSegment(2000, {
+      thumbnail: true,
+      onComplete: () => captureEndCard(2000),
+    });
+  }, [captureEndCard, captureSegment]);
 
   useEffect(() => {
     let cancelled = false;
@@ -886,6 +891,10 @@ export default function App() {
           analysisStartedRef.current = true;
           void (async () => {
             try {
+              // Keep the analysis screen visible long enough for the intended
+              // introduction, then capture the frame for the real API call.
+              await new Promise((resolve) => window.setTimeout(resolve, 3000));
+              if (cancelled) return;
               const sessionPublicId = publicIdRef.current;
               if (!sessionPublicId) {
                 throw new Error("분석 세션이 없습니다. 동의 화면부터 다시 시작해 주세요.");
@@ -1010,7 +1019,10 @@ export default function App() {
           recorderStatus={recordingStatus}
           captureSegment={captureSegment}
           />
-          <AuraOrbOverlay orb={orb} />
+          <AuraOrbOverlay
+            orb={orb}
+            palette={auraResult.palette.map((color) => color.color).filter(Boolean)}
+          />
           {recordingStatus === "uploading" && (
             <span className="recording-status">영상 저장 중…</span>
           )}

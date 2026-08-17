@@ -96,7 +96,6 @@ export const finalizeAuraSession = async (
 
     const result = await response.json();
     console.log("백엔드가 보낸 진짜 응답:", result);
-
     return result.data ? result.data : result;
   } catch (error) {
     console.error("QR 코드 생성 중 오류 발생:", error);
@@ -116,7 +115,6 @@ export const getAuraOutputStatus = async (publicId) => {
 
     const result = await response.json();
     return result.data ? result.data : result;
-    
   } catch (error) {
     console.error("상태 조회 중 오류 발생:", error);
     throw error;

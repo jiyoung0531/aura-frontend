@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { finalizeAuraSession } from "../../api/auraApi";
 import QrResultScreen from "./QrResultScreen";
 import { getAuraOutputStatus } from '../../api/auraApi';
@@ -171,9 +171,19 @@ export default function PhaseOverlay({
       )}
 
       {phase === "orb" && (
-        <div className="aura-gather-prompt">
-          {orbCreated ? "오브를 밀어넣어보세요" : "손을 모아보세요"}
-        </div>
+        orbCreated ? (
+          <div className="aura-orb-push-guidance">
+            <img src="/icons/press-bag.svg" alt="" />
+            <span>가방에 press하세요</span>
+            <small>Press on the bag</small>
+          </div>
+        ) : (
+          <div className="aura-orb-gather-guidance">
+            <img src="/icons/hands-praying-gather.svg" alt="" />
+            <span>손을 모아보세요</span>
+            <small>Gather your hands</small>
+          </div>
+        )
       )}
 
       {/* 하단 영역 */}
