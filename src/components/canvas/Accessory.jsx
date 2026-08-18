@@ -97,6 +97,11 @@ export function Accessory({
   return (
     <group ref={groupRef}>
       <primitive object={scene} scale={scale} />
+      {/* 악세사리 부착 인식 범위 확대 */}
+      <mesh position={[0, -0.22, 0]}>
+        <sphereGeometry args={[0.25, 16, 16]} />
+        <meshBasicMaterial transparent={true} opacity={0} depthWrite={false} />
+      </mesh>
     </group>
   );
 }
