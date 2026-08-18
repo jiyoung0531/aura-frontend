@@ -39,13 +39,6 @@ export default function PhaseOverlay({
       console.log("최종 악세사리 부착 모습 녹화 중...");
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      if (captureSegment) {
-        console.log("비디오 녹화 종료 명령 전달");
-        captureSegment(0, { finish: true });
-      } else {
-        console.error("App.jsx에서 captureSegment 안 넘김");
-      }
-
       if (activeAccessoryId) {
         console.log(
           `[API 전송] 최종 선택된 악세사리(${activeAccessoryId}) 백엔드 부착 요청...`,
