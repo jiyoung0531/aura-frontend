@@ -3,6 +3,7 @@ import { finalizeAuraSession } from "../../api/auraApi";
 import QrResultScreen from "./QrResultScreen";
 import { getAuraOutputStatus } from "../../api/auraApi";
 import { attachAccessory } from "../../api/auraApi";
+import VideoPreparingScreen from "./VideoPreparingScreen";
 
 export default function PhaseOverlay({
   phase,
@@ -17,10 +18,37 @@ export default function PhaseOverlay({
 
   const [qrImageUrl, setQrImageUrl] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPreparing, setIsPreparing] = useState(false);
+  const [preparationProgress, setPreparationProgress] = useState(0);
+  const preparationStartedAtRef = useRef(0);
+  const progressTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (progressTimerRef.current) {
+        window.clearInterval(progressTimerRef.current);
+      }
+    };
+  }, []);
+
+  const startPreparationProgress = () => {
+    preparationStartedAtRef.current = Date.now();
+    setPreparationProgress(0);
+    progressTimerRef.current = window.setInterval(() => {
+      const elapsed = Date.now() - preparationStartedAtRef.current;
+      const nextProgress =
+        elapsed < 3000
+          ? Math.min(72, Math.round((elapsed / 3000) * 72))
+          : Math.min(95, 72 + Math.round((elapsed - 3000) / 1200));
+      setPreparationProgress(nextProgress);
+    }, 120);
+  };
 
   const handleCompleteClick = async () => {
     if (isGenerating) return;
     setIsGenerating(true);
+    setIsPreparing(true);
+    startPreparationProgress();
 
     console.log("전송 대기 데이터 확인:", {
       publicId: publicId,
@@ -53,6 +81,7 @@ export default function PhaseOverlay({
 
       let qrUrl = null;
       let attempts = 0;
+      const videoDeadlineAt = preparationStartedAtRef.current + 21000;
 
       while (!qrUrl && attempts < 30) {
         attempts++;
@@ -62,9 +91,18 @@ export default function PhaseOverlay({
           const statusResult = await getAuraOutputStatus(publicId);
           const videoStatus =
             statusResult?.video_status || statusResult?.data?.video_status;
+          const videoTimedOut = Date.now() >= videoDeadlineAt;
 
-          if (videoStatus === "READY") {
-            console.log("비디오 준비 완료, Finalize 요청 전송...");
+          if (
+            videoStatus === "READY" ||
+            videoStatus === "FAILED" ||
+            videoTimedOut
+          ) {
+            console.log(
+              videoStatus === "READY"
+                ? "비디오 준비 완료, Finalize 요청 전송..."
+                : "비디오 제작 실패/시간 초과, 실패 결과로 Finalize 요청 전송...",
+            );
 
             const finalizeResult = await finalizeAuraSession(
               publicId,
@@ -92,17 +130,40 @@ export default function PhaseOverlay({
       }
 
       if (qrUrl) {
+        if (progressTimerRef.current) {
+          window.clearInterval(progressTimerRef.current);
+          progressTimerRef.current = null;
+        }
+        setPreparationProgress(100);
+        const elapsed = Date.now() - preparationStartedAtRef.current;
+        const minimumDisplayTime = Math.max(0, 3000 - elapsed);
+        await new Promise((resolve) => setTimeout(resolve, minimumDisplayTime));
+        setIsPreparing(false);
         setQrImageUrl(qrUrl);
       } else {
+        if (progressTimerRef.current) {
+          window.clearInterval(progressTimerRef.current);
+          progressTimerRef.current = null;
+        }
+        setIsPreparing(false);
         alert("QR 생성 시간이 초과되었습니다. 다시 시도해 주세요.");
         setIsGenerating(false);
       }
     } catch (error) {
       console.error("완료 처리 중 에러 발생:", error);
+      if (progressTimerRef.current) {
+        window.clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+      setIsPreparing(false);
       alert("처리 중 오류가 발생했습니다.");
       setIsGenerating(false);
     }
   };
+
+  if (isPreparing) {
+    return <VideoPreparingScreen progress={preparationProgress} />;
+  }
 
   if (qrImageUrl) {
     return (
