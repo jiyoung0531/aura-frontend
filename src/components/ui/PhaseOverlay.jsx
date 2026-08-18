@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { finalizeAuraSession } from "../../api/auraApi";
 import QrResultScreen from "./QrResultScreen";
 import { getAuraOutputStatus } from "../../api/auraApi";
-import { attachAccessory } from '../../api/auraApi';
+import { attachAccessory } from "../../api/auraApi";
 
 export default function PhaseOverlay({
   phase,
@@ -11,7 +11,7 @@ export default function PhaseOverlay({
   auraColors,
   activeAccessoryId,
   recorderStatus,
-  captureSegment,
+  onFinalizeRecording,
 }) {
   const isOrbPhase = phase === "orb" || phase === "injecting";
 
@@ -28,6 +28,13 @@ export default function PhaseOverlay({
       activeAccessoryId: activeAccessoryId,
     });
 
+    if (onFinalizeRecording) {
+      console.log("최종 키링 장면 녹화 명령 전달");
+      onFinalizeRecording();
+    } else {
+      console.error("App.jsx에서 onFinalizeRecording 안 넘김");
+    }
+
     try {
       console.log("최종 악세사리 부착 모습 녹화 중...");
       await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -40,7 +47,9 @@ export default function PhaseOverlay({
       }
 
       if (activeAccessoryId) {
-        console.log(`[API 전송] 최종 선택된 악세사리(${activeAccessoryId}) 백엔드 부착 요청...`);
+        console.log(
+          `[API 전송] 최종 선택된 악세사리(${activeAccessoryId}) 백엔드 부착 요청...`,
+        );
         try {
           await attachAccessory(publicId, activeAccessoryId);
           console.log("악세사리 부착 API 전송 완료!");
@@ -100,7 +109,7 @@ export default function PhaseOverlay({
       alert("처리 중 오류가 발생했습니다.");
       setIsGenerating(false);
     }
-  }; 
+  };
 
   if (qrImageUrl) {
     return (

@@ -310,9 +310,14 @@ export default function App() {
   }, [captureSegment]);
 
   const handleAccessoryAttached = useCallback(() => {
+    // Final accessory recording happens when the user completes the styling,
+    // so the exported video uses the last selected keyring.
+  }, []);
+
+  const handleFinalizeRecording = useCallback(() => {
     if (outroCaptureTriggeredRef.current) return;
     outroCaptureTriggeredRef.current = true;
-    // 13–15s: completed bag / thumbnail. 15–17s: AURA end card.
+    // Completed bag with the final keyring / thumbnail, then AURA end card.
     captureSegment(2000, {
       thumbnail: true,
       onComplete: () => captureEndCard(2000),
@@ -1090,7 +1095,7 @@ export default function App() {
             activeAccessoryId={activeAccessoryId}
             //recorderStatus={status}
             recorderStatus={recordingStatus}
-            captureSegment={captureSegment}
+            onFinalizeRecording={handleFinalizeRecording}
           />
           <AuraOrbOverlay
             orb={orb}
