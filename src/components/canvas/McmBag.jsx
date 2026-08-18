@@ -103,7 +103,10 @@ export function McmBag({
 
   const bagGroupRef = useRef();
 
+  // 재질별 컬러 지정
   const bagMaterialsRef = useRef([]);
+  const subMaterialsRef = useRef([]);
+  const metalMaterialsRef = useRef([]);
 
   const currentRotation = phase === 3 ? [0, 0, 0] : rotation;
 
@@ -253,12 +256,31 @@ export function McmBag({
     [auraPalette, isInfused],
   );
 
+  // 서브 컬러 이용
+  const targetSubColor = useMemo(
+    () => new THREE.Color(isInfused ? auraPalette[1] || "#ffffff" : "#ffffff"),
+    [auraPalette, isInfused],
+  );
+
+  const targetMetalColor = useMemo(
+    () => new THREE.Color(isInfused ? auraPalette[2] || "#ffffff" : "#ffffff"),
+    [auraPalette, isInfused],
+  );
+
   // 인터랙션 로직
   useFrame((state, delta) => {
     const colorLerp = 1 - Math.exp(-3.2 * delta);
-
+    // 메인컬러
     bagMaterialsRef.current.forEach((material) => {
       material.color?.lerp(targetBagColor, colorLerp);
+    });
+    //서브컬러
+    subMaterialsRef.current.forEach((material) => {
+      material.color?.lerp(targetSubColor, colorLerp);
+    });
+    //금속컬러
+    metalMaterialsRef.current.forEach((material) => {
+      material.color?.lerp(targetMetalColor, colorLerp);
     });
 
     if (!handPosRef || !handPosRef.current || !setHoveredMaterial) {
@@ -491,41 +513,39 @@ export function McmBag({
   }
 
   {/*559번째 줄까지 변경*/ }
-  useEffect(() => {
+ useEffect(() => {
+    // 바구니 초기화
     bagMaterialsRef.current = [];
+    subMaterialsRef.current = [];
+    metalMaterialsRef.current = [];
 
     scene.traverse((child) => {
       if (child.isMesh && child.material) {
         child.material.flatShading = false;
         child.geometry.computeVertexNormals();
 
+        // 🎒 1. [메인 컬러] 가방 본체 (auraPalette[0] 적용)
         if (child.name === "bag_mesh" || child.name === "side_panel_mesh") {
-          
-          //  가방 본체 설정 ( 아우라 색상만 입혀지도록)
           child.material.map = null;
-          child.material.color.set("#ffffff"); 
-          
-          bagMaterialsRef.current.push(child.material);
+          child.material.color.set("#ffffff");
+          bagMaterialsRef.current.push(child.material); // 메인 바구니에 담기
 
           if (child.material.normalMap) {
             child.material.normalScale.set(2, 2);
           }
           child.material.needsUpdate = true;
 
-          // 투명 패턴 껍데기 추가 (투명 배경 + 고유 로고 색상 살리기)
+          // (투명 패턴 껍데기 로직)
           if (!child.userData.patternMesh) {
             const patternMaterial = child.material.clone();
             const patternMesh = new THREE.Mesh(child.geometry, patternMaterial);
-
             patternMesh.material.map = selectedTexture;
-            patternMesh.material.color.set("#ffffff"); 
-            patternMesh.material.transparent = true;   
+            patternMesh.material.color.set("#ffffff");
+            patternMesh.material.transparent = true;
             patternMesh.material.opacity = 1;
-
             patternMesh.material.polygonOffset = true;
             patternMesh.material.polygonOffsetFactor = -1;
-
-            child.add(patternMesh); 
+            child.add(patternMesh);
             child.userData.patternMesh = patternMesh;
           } else {
             child.userData.patternMesh.material.map = selectedTexture;
@@ -533,14 +553,53 @@ export function McmBag({
           }
         }
 
+       if (child.name === "side_studs_mesh") {
+          child.material = child.material.clone();
+          if (isInfused) { 
+            child.material.color.set("#ffffff");
+            metalMaterialsRef.current.push(child.material);
+          }
+          child.material.needsUpdate = true;
+        }
+
+        if (
+          child.name === "zip_pocket_mesh" ||
+          child.name === "zip_main_mesh"
+        ) {
+          child.material = child.material.clone();
+
+          if (isInfused) {
+            child.material.map = null; 
+            child.material.color.set("#ffffff");
+            metalMaterialsRef.current.push(child.material);
+          } else {
+            // 오라 주입 전: 코드를 비워두어 3D 모델 본연의 텍스처와 색상을 유지
+          }
+          child.material.needsUpdate = true;
+        }
+
+        if (
+          child.name === "round_line_001_mesh" ||
+          child.name === "round_line_002_mesh" ||
+          child.name === "strong_handle_mesh"
+        ) {
+          child.material = child.material.clone();
+          child.material.map = null; 
+
+          if (isInfused) {
+            child.material.color.set("#5E3122"); 
+            subMaterialsRef.current.push(child.material);
+          } else {
+            child.material.color.set("#5E3122"); 
+          }
+          child.material.needsUpdate = true;
+        }
+
         if (
           child.name === "shoulder_strap_001_mesh" ||
           child.name === "shoulder_strap_002_mesh" ||
           child.name === "strap_001_mesh" ||
-          child.name === "strap_002_mesh" ||
-          child.name === "round_line_001_mesh" ||
-          child.name === "round_line_002_mesh" ||
-          child.name === "strong_handle_mesh"
+          child.name === "strap_002_mesh"
         ) {
           child.material = child.material.clone();
           child.material.map = null;
@@ -633,14 +692,6 @@ export function McmBag({
                 } else {
                   window.sessionStorage.removeItem("aura_active_accessory_id");
                 }
-
-                if (sessionPublicId && next === ORIGINAL_KEYRING_ID) {
-                  attachAccessory(sessionPublicId, ORIGINAL_KEYRING_ID)
-                    .then(() =>
-                      console.log("[API 전송] 2번 오리지널 키링 부착 성공!"),
-                    )
-                    .catch((err) => console.error(err));
-                }
               }}
             />
           </group>
@@ -699,14 +750,6 @@ export function McmBag({
                   );
                 } else {
                   window.sessionStorage.removeItem("aura_active_accessory_id");
-                }
-
-                if (sessionPublicId && next === TEDDY_KEYRING_ID) {
-                  attachAccessory(sessionPublicId, TEDDY_KEYRING_ID)
-                    .then(() =>
-                      console.log("[API 전송] 3번 곰돌이 키링 부착 성공!"),
-                    )
-                    .catch((err) => console.error(err));
                 }
               }}
             />
