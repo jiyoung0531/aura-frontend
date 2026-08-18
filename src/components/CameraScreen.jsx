@@ -8,7 +8,10 @@ export default function CameraScreen({
   mirror,
   cameraPhase,
   showReachPrompt,
+  showReachRetryPrompt = false,
+  onReachRetry,
   auraResult,
+  analysisFallback = false,
   bagImageRef,
 }) {
   const showAnalysis = cameraPhase === "result";
@@ -36,7 +39,7 @@ export default function CameraScreen({
       )}
       <canvas ref={canvasRef} className="tracking-canvas" />
       {cameraPhase && (
-        <div className="camera-ui-overlay" aria-hidden="true">
+        <div className="camera-ui-overlay">
           <img
             src="/aura-corner-left.svg"
             alt=""
@@ -72,8 +75,37 @@ export default function CameraScreen({
 
           <img src="/mcm-logo.svg" alt="" className="camera-mcm-logo" />
 
-          {showAnalysis && (
+          {showReachRetryPrompt && (
             <>
+              <div className="camera-reach-retry-screen">
+                <div className="camera-reach-focus">
+                  <span className="camera-reach-focus-corner top-left" />
+                  <span className="camera-reach-focus-corner top-right" />
+                  <span className="camera-reach-focus-corner bottom-left" />
+                  <span className="camera-reach-focus-corner bottom-right" />
+                  <img src="/aura-hand-detect-failed.svg" alt="" />
+                </div>
+                <strong>손 인식을 실패했어요</strong>
+                <small>손을 화면 중앙에 다시 맞춰주세요</small>
+                <button type="button" onClick={onReachRetry}>
+                  다시 시도하기
+                </button>
+              </div>
+            </>
+          )}
+
+          {showAnalysis &&
+            (analysisFallback ? (
+              <div className="camera-fallback-screen">
+                <span className="camera-fallback-clock">
+                  <img src="/aura-delay-clock.svg" alt="" />
+                  <img src="/aura-delay-clock-hand.svg" alt="" />
+                </span>
+                <strong>AI 분석이 지연되고 있어요</strong>
+                <small>기본 무드로 진행 중입니다</small>
+              </div>
+            ) : (
+              <>
               <div className="camera-style-card">
                 <span>STYLE</span>
                 <strong>{auraResult.style}</strong>
@@ -102,6 +134,12 @@ export default function CameraScreen({
                 </div>
               </div>
             </>
+            ))}
+
+          {showAnalysis && analysisFallback && (
+            <div className="camera-fallback-wait">
+              잠시만 기다려주세요
+            </div>
           )}
 
           {showScanStatus && (

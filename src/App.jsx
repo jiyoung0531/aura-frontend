@@ -278,10 +278,12 @@ export default function App() {
   const cameraPhaseRef = useRef("scanning");
   const particleStateRef = useRef(null);
   const [showReachPrompt, setShowReachPrompt] = useState(false);
+  const [showReachRetryPrompt, setShowReachRetryPrompt] = useState(false);
   const [cameraPhase, setCameraPhase] = useState("scanning");
   const [auraResult, setAuraResult] = useState(DEFAULT_AURA_RESULT);
   const [assetManifest, setAssetManifest] = useState(null);
   const [analysisReady, setAnalysisReady] = useState(false);
+  const [analysisFallback, setAnalysisFallback] = useState(false);
   const [publicId, setPublicId] = useState(() =>
     window.sessionStorage.getItem("aura_public_id"),
   );
@@ -308,6 +310,13 @@ export default function App() {
     // 2–5 seconds: keep one three-second bag exploration clip.
     captureSegment(3000);
   }, [captureSegment]);
+
+  const handleReachRetry = useCallback(() => {
+    openHandStartedAtRef.current = null;
+    showReachPromptRef.current = true;
+    setShowReachRetryPrompt(false);
+    setShowReachPrompt(true);
+  }, []);
 
   const handleAccessoryAttached = useCallback(() => {
     // Final accessory recording happens when the user completes the styling,
@@ -388,6 +397,8 @@ export default function App() {
     recordingStartedRef.current = false;
     outroCaptureTriggeredRef.current = false;
     setAnalysisReady(false);
+    setAnalysisFallback(false);
+    setShowReachRetryPrompt(false);
     setAuraResult(DEFAULT_AURA_RESULT);
     setCameraPhase("scanning");
     window.history.pushState({}, "", "/camera");
@@ -402,6 +413,7 @@ export default function App() {
     showReachPromptRef.current = false;
     navigationTriggeredRef.current = false;
     openHandStartedAtRef.current = null;
+    setShowReachRetryPrompt(false);
 
     const resetTimer = window.setTimeout(() => {
       setShowReachPrompt(false);
@@ -454,11 +466,33 @@ export default function App() {
     const revealTimer = window.setTimeout(() => {
       showReachPromptRef.current = true;
       setShowReachPrompt(true);
+      setShowReachRetryPrompt(false);
       setCameraPhase("reach");
     }, 6000);
 
     return () => window.clearTimeout(revealTimer);
   }, [cameraPhase, showCameraPage]);
+
+  useEffect(() => {
+    if (
+      !showCameraPage ||
+      cameraPhase !== "reach" ||
+      !showReachPrompt ||
+      showReachRetryPrompt
+    ) {
+      return undefined;
+    }
+
+    const retryTimer = window.setTimeout(() => {
+      if (navigationTriggeredRef.current) return;
+      showReachPromptRef.current = false;
+      openHandStartedAtRef.current = null;
+      setShowReachPrompt(false);
+      setShowReachRetryPrompt(true);
+    }, 9000);
+
+    return () => window.clearTimeout(retryTimer);
+  }, [cameraPhase, showCameraPage, showReachPrompt, showReachRetryPrompt]);
 
   useEffect(() => {
     if (
@@ -974,8 +1008,10 @@ export default function App() {
               );
               if (cancelled) return;
               setAuraResult(toAuraResult(analysis));
+              setAnalysisFallback(false);
             } catch (error) {
               console.error("Aura analysis failed; using fallback:", error);
+              setAnalysisFallback(true);
             } finally {
               if (!cancelled) setAnalysisReady(true);
               if (!cancelled) {
@@ -1130,7 +1166,10 @@ export default function App() {
         mirror={mirrorCamera}
         cameraPhase={showCameraPage ? cameraPhase : null}
         showReachPrompt={showCameraPage && showReachPrompt}
+        showReachRetryPrompt={showCameraPage && showReachRetryPrompt}
+        onReachRetry={handleReachRetry}
         auraResult={auraResult}
+        analysisFallback={analysisFallback}
         bagImageRef={cameraBagImageRef}
       />
 
