@@ -135,7 +135,7 @@ const hexToRgba = (hex, alpha) => {
 const drawParticleField = (context, width, height, particles, time) => {
   if (!particles?.length) return;
 
-  const centerX = width * 0.25;
+  const centerX = width * 0.07;
   const centerY = height / 2;
   const progress = Math.min(1, time / 12000);
 
