@@ -307,17 +307,29 @@ export default function LandingPage({
         backgroundColor: null,
       });
 
-      const image = canvas.toDataURL("image/png");
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("이미지 Blob 생성 실패"));
+        }, "image/png");
+      });
+
+      const blobUrl = URL.createObjectURL(blob);
 
       const link = document.createElement("a");
-
-      link.href = image;
+      link.href = blobUrl;
       link.download = "My_Aura_Card.png";
 
+      document.body.appendChild(link);
       link.click();
+      link.remove();
+
+      // iOS Safari에서 즉시 revoke하면 다운로드 전에 끊길 수 있어서 지연
+      setTimeout(() => {
+        URL.revokeObjectURL(blobUrl);
+      }, 10000);
     } catch (error) {
       console.error("이미지 저장 실패:", error);
-
       alert("이미지를 저장하는 데 실패했습니다.");
     }
   };
@@ -353,9 +365,7 @@ export default function LandingPage({
             alt="Video generation failed"
           />
         ) : (
-          <div className="video-placeholder">
-            체험 영상을 준비 중입니다...
-          </div>
+          <div className="video-placeholder">체험 영상을 준비 중입니다...</div>
         )}
 
         {hasVideo && (
