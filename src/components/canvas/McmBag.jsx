@@ -633,14 +633,6 @@ export function McmBag({
                 } else {
                   window.sessionStorage.removeItem("aura_active_accessory_id");
                 }
-
-                if (sessionPublicId && next === ORIGINAL_KEYRING_ID) {
-                  attachAccessory(sessionPublicId, ORIGINAL_KEYRING_ID)
-                    .then(() =>
-                      console.log("[API 전송] 2번 오리지널 키링 부착 성공!"),
-                    )
-                    .catch((err) => console.error(err));
-                }
               }}
             />
           </group>
@@ -699,14 +691,6 @@ export function McmBag({
                   );
                 } else {
                   window.sessionStorage.removeItem("aura_active_accessory_id");
-                }
-
-                if (sessionPublicId && next === TEDDY_KEYRING_ID) {
-                  attachAccessory(sessionPublicId, TEDDY_KEYRING_ID)
-                    .then(() =>
-                      console.log("[API 전송] 3번 곰돌이 키링 부착 성공!"),
-                    )
-                    .catch((err) => console.error(err));
                 }
               }}
             />
