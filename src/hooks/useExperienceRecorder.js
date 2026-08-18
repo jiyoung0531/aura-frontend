@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { completeVideoUpload, requestVideoUpload } from "../api/auraApi";
 
-const RECORDING_DURATION_MS = 15000;
+const RECORDING_DURATION_MS = 17000;
 const VIDEO_MIME_TYPE = "video/mp4";
 const BAG_REVEAL_DELAY_MS = 4000;
 // A wider recorded framing: the scene occupies 1 / 1.5 of the output while
@@ -10,6 +10,17 @@ const RECORDING_ZOOM = 1 / 1.5;
 const handImages = {
   open: Object.assign(new Image(), { src: "/hand2.png" }),
   fist: Object.assign(new Image(), { src: "/rock2.png" }),
+};
+const endCardLogo = Object.assign(new Image(), { src: "/icons/aura-endcard-logo.svg" });
+
+const hexToRgba = (hex, alpha) => {
+  const normalized = (hex || "#4edfff").replace("#", "");
+  const value = normalized.length === 3
+    ? normalized.split("").map((character) => character + character).join("")
+    : normalized;
+  const integer = Number.parseInt(value, 16);
+  if (Number.isNaN(integer)) return `rgba(78, 223, 255, ${alpha})`;
+  return `rgba(${(integer >> 16) & 255}, ${(integer >> 8) & 255}, ${integer & 255}, ${alpha})`;
 };
 
 const toBlob = (canvas, type, quality) =>
@@ -41,16 +52,16 @@ const drawCover = (context, source, width, height, mirror = false) => {
   context.restore();
 };
 
-const drawAuraOrb = (context, orb, width, height) => {
+const drawAuraOrb = (context, orb, width, height, palette = []) => {
   if (!orb?.visible) return;
   const x = ((orb.x || window.innerWidth / 2) / window.innerWidth) * width;
   const y = ((orb.y || window.innerHeight / 2) / window.innerHeight) * height;
   const radius = Math.min(width, height) * (orb.injecting ? 0.12 : 0.09);
   const glow = context.createRadialGradient(x, y, 0, x, y, radius * 1.5);
   glow.addColorStop(0, "rgba(255,255,255,0.95)");
-  glow.addColorStop(0.22, "rgba(116,232,255,0.82)");
-  glow.addColorStop(0.56, "rgba(0,168,220,0.34)");
-  glow.addColorStop(1, "rgba(0,154,220,0)");
+  glow.addColorStop(0.22, hexToRgba(palette[1] || palette[0], 0.82));
+  glow.addColorStop(0.56, hexToRgba(palette[0], 0.34));
+  glow.addColorStop(1, hexToRgba(palette[0], 0));
 
   context.save();
   context.globalCompositeOperation = "screen";
@@ -58,7 +69,7 @@ const drawAuraOrb = (context, orb, width, height) => {
   context.beginPath();
   context.arc(x, y, radius * 1.5, 0, Math.PI * 2);
   context.fill();
-  context.strokeStyle = "rgba(137,239,255,0.72)";
+  context.strokeStyle = hexToRgba(palette[0], 0.72);
   context.lineWidth = Math.max(2, radius * 0.06);
   for (let index = 0; index < 4; index += 1) {
     context.save();
@@ -86,12 +97,30 @@ const drawAuraHand = (context, hand, width, height) => {
   context.restore();
 };
 
+const drawEndCard = (context, width, height) => {
+  context.fillStyle = "#000";
+  context.fillRect(0, 0, width, height);
+  const logoWidth = width * 0.333;
+  const logoHeight = endCardLogo.naturalWidth
+    ? logoWidth * (endCardLogo.naturalHeight / endCardLogo.naturalWidth)
+    : logoWidth * 0.24;
+  const x = (width - logoWidth) / 2;
+  const y = height * 0.448;
+  if (endCardLogo.complete && endCardLogo.naturalWidth) {
+    context.drawImage(endCardLogo, x, y, logoWidth, logoHeight);
+  }
+  context.fillStyle = "#f3ede3";
+  context.font = "500 10px Pretendard, sans-serif";
+  context.textAlign = "center";
+  context.fillText("FORGED BY YOUR AURA", width / 2, y + logoHeight + 18);
+};
+
 /**
  * The app is rendered with separate video, 2D and WebGL layers. This hook
  * composites them into one canvas so MediaRecorder captures the experience,
  * rather than only the WebGL bag canvas.
  */
-export function useExperienceRecorder({ videoRef, trackingCanvasRef, webglCanvasRef, bagImageRef, orbRef, handImageRef, phaseRef }) {
+export function useExperienceRecorder({ videoRef, trackingCanvasRef, webglCanvasRef, bagImageRef, orbRef, handImageRef, phaseRef, auraPalette }) {
   const recorderRef = useRef(null);
   const compositeCanvasRef = useRef(null);
   const animationFrameRef = useRef(null);
@@ -99,6 +128,7 @@ export function useExperienceRecorder({ videoRef, trackingCanvasRef, webglCanvas
   const segmentTimerRef = useRef(null);
   const thumbnailBlobRef = useRef(null);
   const introStartedAtRef = useRef(null);
+  const endCardVisibleRef = useRef(false);
   const [status, setStatus] = useState("idle");
 
   const drawFrame = useCallback(() => {
@@ -108,6 +138,14 @@ export function useExperienceRecorder({ videoRef, trackingCanvasRef, webglCanvas
 
     const width = canvas.width;
     const height = canvas.height;
+    if (endCardVisibleRef.current) {
+      drawEndCard(context, width, height);
+      animationFrameRef.current = window.requestAnimationFrame(() => {
+        drawFrameRef.current?.();
+      });
+      return;
+    }
+
     const background = context.createLinearGradient(0, 0, 0, height);
     background.addColorStop(0, "#714c38");
     background.addColorStop(1, "#4f3b30");
@@ -125,7 +163,7 @@ export function useExperienceRecorder({ videoRef, trackingCanvasRef, webglCanvas
       context.scale(sceneZoom, sceneZoom);
       context.translate(-width / 2, -height / 2);
       drawCover(context, webglCanvas, width, height);
-      drawAuraOrb(context, orbRef?.current, width, height);
+      drawAuraOrb(context, orbRef?.current, width, height, auraPalette);
       context.restore();
     } else {
       // The webcam and particle canvas are present during the summon sequence.
@@ -146,9 +184,9 @@ export function useExperienceRecorder({ videoRef, trackingCanvasRef, webglCanvas
           ? width - (frame.x + frame.drawWidth * 0.25)
           : width * 0.75;
         const bagCenterY = frame
-          ? frame.y + frame.drawHeight * 0.47
-          : height * 0.47;
-        const bagWidth = width * 0.27;
+          ? frame.y + frame.drawHeight * 0.5
+          : height * 0.5;
+        const bagWidth = width * 0.62;
         const ratio = bagImage.naturalHeight / bagImage.naturalWidth || 1;
         const bagHeight = bagWidth * ratio;
         context.save();
@@ -170,7 +208,7 @@ export function useExperienceRecorder({ videoRef, trackingCanvasRef, webglCanvas
     animationFrameRef.current = window.requestAnimationFrame(() => {
       drawFrameRef.current?.();
     });
-  }, [bagImageRef, handImageRef, orbRef, phaseRef, trackingCanvasRef, videoRef, webglCanvasRef]);
+  }, [auraPalette, bagImageRef, handImageRef, orbRef, phaseRef, trackingCanvasRef, videoRef, webglCanvasRef]);
 
   useEffect(() => {
     drawFrameRef.current = drawFrame;
@@ -218,6 +256,7 @@ export function useExperienceRecorder({ videoRef, trackingCanvasRef, webglCanvas
     canvas.height = 1280;
     compositeCanvasRef.current = canvas;
     thumbnailBlobRef.current = null;
+    endCardVisibleRef.current = false;
     introStartedAtRef.current = performance.now();
     drawFrameRef.current?.();
 
@@ -272,6 +311,11 @@ export function useExperienceRecorder({ videoRef, trackingCanvasRef, webglCanvas
     }, durationMs);
   }, []);
 
+  const captureEndCard = useCallback((durationMs = 2000) => {
+    endCardVisibleRef.current = true;
+    captureSegment(durationMs, { finish: true });
+  }, [captureSegment]);
+
   useEffect(() => () => {
     window.cancelAnimationFrame(animationFrameRef.current);
     window.clearTimeout(segmentTimerRef.current);
@@ -279,5 +323,5 @@ export function useExperienceRecorder({ videoRef, trackingCanvasRef, webglCanvas
     if (activeRecorder && activeRecorder.state !== "inactive") activeRecorder.stop();
   }, []);
 
-  return { begin, captureSegment, status, durationMs: RECORDING_DURATION_MS };
+  return { begin, captureSegment, captureEndCard, status, durationMs: RECORDING_DURATION_MS };
 }

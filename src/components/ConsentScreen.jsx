@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 export default function ConsentScreen({ onStart }) {
-  const [cameraConsent, setCameraConsent] = useState(true);
+  const [cameraConsent, setCameraConsent] = useState(false);
   const [privacyConsent, setPrivacyConsent] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");

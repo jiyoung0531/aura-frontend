@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { finalizeAuraSession } from "../../api/auraApi";
 import QrResultScreen from "./QrResultScreen";
-import { getAuraOutputStatus } from '../../api/auraApi';
+import { getAuraOutputStatus } from "../../api/auraApi";
+import { attachAccessory } from "../../api/auraApi";
+import VideoPreparingScreen from "./VideoPreparingScreen";
 
 export default function PhaseOverlay({
   phase,
@@ -10,104 +12,158 @@ export default function PhaseOverlay({
   auraColors,
   activeAccessoryId,
   recorderStatus,
-  captureSegment
+  onFinalizeRecording,
 }) {
   const isOrbPhase = phase === "orb" || phase === "injecting";
 
   const [qrImageUrl, setQrImageUrl] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
-
-  const hasStartedRef = useRef(false);
+  const [isPreparing, setIsPreparing] = useState(false);
+  const [preparationProgress, setPreparationProgress] = useState(0);
+  const preparationStartedAtRef = useRef(0);
+  const progressTimerRef = useRef(null);
 
   useEffect(() => {
-    console.log("현재 영상 상태:", recorderStatus);
-
-    if (recorderStatus !== "complete") return;
-    if (hasStartedRef.current) return; 
-    hasStartedRef.current = true;
-
-    let isCancelled = false;
-    let timerId = null;
-
-    console.log("영상 업로드 완료");
-
-    const checkStatus = async () => {
-      if (isCancelled) return;
-
-      try {
-        const statusResult = await getAuraOutputStatus(publicId);
-        if (isCancelled) return;
-
-        console.log("백엔드 상태 응답:", statusResult);
-
-        const videoStatus = statusResult?.video_status || statusResult?.data?.video_status;
-
-        if (videoStatus === "READY") {
-          console.log("비디오 준비 완료");
-
-          try {
-            const finalizeResult = await finalizeAuraSession(publicId, auraColors, activeAccessoryId);
-            if (isCancelled) return;
-            console.log("Finalize 최종 응답:", finalizeResult);
-
-            const qrUrl = 
-              finalizeResult?.data?.qr_image_url || 
-              finalizeResult?.qr_image_url || 
-              statusResult?.data?.qr_image_url || 
-              statusResult?.qr_image_url;
-
-            if (qrUrl) {
-              console.log("QR 생성 완료", qrUrl);
-              setQrImageUrl(qrUrl);
-              setIsGenerating(false);
-              return; // 성공 시 폴링 완전 종료
-            }
-          } catch (finError) {
-            console.log("Finalize 아직 처리 중 (재시도 예정)...", finError);
-          }
-
-          // 주소가 아직 없다면 2초 뒤 재시도 예약
-          if (!isCancelled) {
-            timerId = setTimeout(checkStatus, 2000);
-          }
-        } else {
-          console.log("영상 가공 중");
-          if (!isCancelled) {
-            timerId = setTimeout(checkStatus, 3000);
-          }
-        }
-      } catch (error) {
-        console.error("상태 확인 중 에러 발생 (재시도 중):", error);
-        if (!isCancelled) {
-          timerId = setTimeout(checkStatus, 3000);
-        }
+    return () => {
+      if (progressTimerRef.current) {
+        window.clearInterval(progressTimerRef.current);
       }
     };
+  }, []);
 
-    checkStatus(); 
-
-    return () => {
-      isCancelled = true;
-      if (timerId) clearTimeout(timerId);
-    };
-  }, [recorderStatus, publicId]); 
+  const startPreparationProgress = () => {
+    preparationStartedAtRef.current = Date.now();
+    setPreparationProgress(0);
+    progressTimerRef.current = window.setInterval(() => {
+      const elapsed = Date.now() - preparationStartedAtRef.current;
+      const nextProgress =
+        elapsed < 3000
+          ? Math.min(72, Math.round((elapsed / 3000) * 72))
+          : Math.min(95, 72 + Math.round((elapsed - 3000) / 1200));
+      setPreparationProgress(nextProgress);
+    }, 120);
+  };
 
   const handleCompleteClick = async () => {
+    if (isGenerating) return;
     setIsGenerating(true);
-
-    if (captureSegment) {
-      console.log("비디오 녹화 종료 명령 전달");
-      captureSegment(0, { finish: true }); 
-    } else {
-      console.error("App.jsx에서 captureSegment 안 넘김");
-    }
+    setIsPreparing(true);
+    startPreparationProgress();
 
     console.log("전송 대기 데이터 확인:", {
       publicId: publicId,
       auraColors: auraColors,
       activeAccessoryId: activeAccessoryId,
     });
+
+    if (onFinalizeRecording) {
+      console.log("최종 키링 장면 녹화 명령 전달");
+      onFinalizeRecording();
+    } else {
+      console.error("App.jsx에서 onFinalizeRecording 안 넘김");
+    }
+
+    try {
+      console.log("최종 악세사리 부착 모습 녹화 중...");
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      if (activeAccessoryId) {
+        console.log(
+          `[API 전송] 최종 선택된 악세사리(${activeAccessoryId}) 백엔드 부착 요청...`,
+        );
+        try {
+          await attachAccessory(publicId, activeAccessoryId);
+          console.log("악세사리 부착 API 전송 완료!");
+        } catch (attachErr) {
+          console.error("악세사리 부착 실패:", attachErr);
+        }
+      }
+
+      let qrUrl = null;
+      let attempts = 0;
+      const videoDeadlineAt = preparationStartedAtRef.current + 21000;
+
+      while (!qrUrl && attempts < 30) {
+        attempts++;
+        console.log(`백엔드 비디오 상태 확인 시도 중... (${attempts}/30)`);
+
+        try {
+          const statusResult = await getAuraOutputStatus(publicId);
+          const videoStatus =
+            statusResult?.video_status || statusResult?.data?.video_status;
+          const videoTimedOut = Date.now() >= videoDeadlineAt;
+
+          if (
+            videoStatus === "READY" ||
+            videoStatus === "FAILED" ||
+            videoTimedOut
+          ) {
+            console.log(
+              videoStatus === "READY"
+                ? "비디오 준비 완료, Finalize 요청 전송..."
+                : "비디오 제작 실패/시간 초과, 실패 결과로 Finalize 요청 전송...",
+            );
+
+            const finalizeResult = await finalizeAuraSession(
+              publicId,
+              auraColors,
+              activeAccessoryId,
+            );
+            console.log("Finalize 최종 응답:", finalizeResult);
+
+            qrUrl =
+              finalizeResult?.data?.qr_image_url ||
+              finalizeResult?.qr_image_url ||
+              statusResult?.data?.qr_image_url ||
+              statusResult?.qr_image_url;
+
+            if (qrUrl) {
+              console.log("QR 생성 완료:", qrUrl);
+              break;
+            }
+          }
+        } catch (pollErr) {
+          console.log("아직 처리 중, 2초 후 재시도...", pollErr);
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+
+      if (qrUrl) {
+        if (progressTimerRef.current) {
+          window.clearInterval(progressTimerRef.current);
+          progressTimerRef.current = null;
+        }
+        setPreparationProgress(100);
+        const elapsed = Date.now() - preparationStartedAtRef.current;
+        const minimumDisplayTime = Math.max(0, 3000 - elapsed);
+        await new Promise((resolve) => setTimeout(resolve, minimumDisplayTime));
+        setIsPreparing(false);
+        setQrImageUrl(qrUrl);
+      } else {
+        if (progressTimerRef.current) {
+          window.clearInterval(progressTimerRef.current);
+          progressTimerRef.current = null;
+        }
+        setIsPreparing(false);
+        alert("QR 생성 시간이 초과되었습니다. 다시 시도해 주세요.");
+        setIsGenerating(false);
+      }
+    } catch (error) {
+      console.error("완료 처리 중 에러 발생:", error);
+      if (progressTimerRef.current) {
+        window.clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+      setIsPreparing(false);
+      alert("처리 중 오류가 발생했습니다.");
+      setIsGenerating(false);
+    }
   };
+
+  if (isPreparing) {
+    return <VideoPreparingScreen progress={preparationProgress} />;
+  }
 
   if (qrImageUrl) {
     return (
@@ -170,11 +226,20 @@ export default function PhaseOverlay({
         </div>
       )}
 
-      {phase === "orb" && (
-        <div className="aura-gather-prompt">
-          {orbCreated ? "오브를 밀어넣어보세요" : "손을 모아보세요"}
-        </div>
-      )}
+      {phase === "orb" &&
+        (orbCreated ? (
+          <div className="aura-orb-push-guidance">
+            <img src="/icons/press-bag.svg" alt="" />
+            <span>가방에 press하세요</span>
+            <small>Press on the bag</small>
+          </div>
+        ) : (
+          <div className="aura-orb-gather-guidance">
+            <img src="/icons/hands-praying-gather.svg" alt="" />
+            <span>손을 모아보세요</span>
+            <small>Gather your hands</small>
+          </div>
+        ))}
 
       {/* 하단 영역 */}
       <div className="bottom-banner">
