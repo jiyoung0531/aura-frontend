@@ -68,6 +68,15 @@
   font-weight: bold;
 }
 
+.video-failure-image {
+  display: block;
+  width: 100%;
+  max-width: 480px;
+  height: auto;
+  aspect-ratio: 648 / 927;
+  object-fit: cover;
+}
+
 .experience-video {
   width: calc(100% - 174px);
   max-width: 216px;
@@ -184,10 +193,11 @@ button {
 
 /* 구분선 */
 .divider {
+  display: block;
+  height: 0;
+  margin: 10px 0;
   border: 0;
-  height: 2px;
-  background-color: #333;
-  margin: 30px 40px;
+  background: transparent;
 }
 
 /* 제품 추천 섹션 */
@@ -415,10 +425,11 @@ button {
 }
 
 .divider {
+  display: block;
+  height: 0;
+  margin: 10px 0;
   border: 0;
-  height: 2px;
-  background-color: #333;
-  margin: 30px 40px;
+  background: transparent;
 }
 
 .sub-divider {

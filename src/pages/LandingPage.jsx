@@ -167,6 +167,9 @@ export default function LandingPage({
 
   const hasVideo =
     userData.video_status === "READY" && Boolean(userData.video_url);
+  const isVideoFailed = ["FAILED", "FAIL", "ERROR"].includes(
+    String(userData.video_status || "").toUpperCase(),
+  );
 
   /*
    * =========================================================
@@ -343,22 +346,24 @@ export default function LandingPage({
             playsInline
             onPlay={() => sendEventLog("VIDEO_PLAY")}
           />
+        ) : isVideoFailed ? (
+          <img
+            className="video-failure-image"
+            src="/failpage.png"
+            alt="Video generation failed"
+          />
         ) : (
           <div className="video-placeholder">
-            {userData.video_status === "FAILED"
-              ? "체험 영상 제작에 실패했어요."
-              : "체험 영상을 준비 중입니다..."}
+            체험 영상을 준비 중입니다...
           </div>
         )}
 
-        <button
-          className="primary-btn"
-          disabled={!hasVideo}
-          onClick={downloadVideo}
-        >
-          <img src="/download.svg" alt="download icon" className="btn-icon" />
-          영상 저장
-        </button>
+        {hasVideo && (
+          <button className="primary-btn" onClick={downloadVideo}>
+            <img src="/download.svg" alt="download icon" className="btn-icon" />
+            영상 저장
+          </button>
+        )}
       </section>
 
       {/* 3. AURA 카드 */}
