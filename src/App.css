@@ -41,7 +41,10 @@
 .consent-intro h1 {
   margin: 0;
   color: #3a2418;
-  font: 400 clamp(38px, 5vw, 56px)/1.1 Pretendard, "Noto Sans KR", sans-serif;
+  font:
+    400 clamp(38px, 5vw, 56px)/1.1 Pretendard,
+    "Noto Sans KR",
+    sans-serif;
   letter-spacing: 0;
   white-space: nowrap;
 }
@@ -154,7 +157,10 @@
   border-radius: 23px;
   background: #f3ede3;
   color: #111;
-  font: 400 clamp(27px, 3.2vw, 36px)/1 Pretendard, "Noto Sans KR", sans-serif;
+  font:
+    400 clamp(27px, 3.2vw, 36px)/1 Pretendard,
+    "Noto Sans KR",
+    sans-serif;
   cursor: pointer;
 }
 
@@ -213,7 +219,9 @@
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.6);
   color: #f3ede3;
-  font: 500 13px/1 Pretendard, sans-serif;
+  font:
+    500 13px/1 Pretendard,
+    sans-serif;
 }
 
 .hand-image-overlay {
@@ -337,9 +345,9 @@
 .camera-bag-reveal {
   position: absolute;
   left: 75%;
-  top: 47%;
+  top: 50%;
   z-index: 3;
-  width: min(20vw, 250px);
+  width: clamp(280px, 34vw, 440px);
   max-height: 72vh;
   object-fit: contain;
   opacity: 0;
@@ -821,7 +829,10 @@
   border-radius: 23px;
   background: rgba(243, 237, 227, 0.73);
   color: #111;
-  font: 400 clamp(27px, 3vw, 36px)/1 Pretendard, "Noto Sans KR", sans-serif;
+  font:
+    400 clamp(27px, 3vw, 36px)/1 Pretendard,
+    "Noto Sans KR",
+    sans-serif;
   white-space: nowrap;
   transform: translateX(-50%);
 }
@@ -921,12 +932,18 @@
 }
 
 .aura-gather-copy strong {
-  font: 400 clamp(27px, 3vw, 36px)/1 Pretendard, "Noto Sans KR", sans-serif;
+  font:
+    400 clamp(27px, 3vw, 36px)/1 Pretendard,
+    "Noto Sans KR",
+    sans-serif;
   white-space: nowrap;
 }
 
 .aura-gather-copy small {
-  font: 400 clamp(18px, 2vw, 24px)/1 Pretendard, "Noto Sans KR", sans-serif;
+  font:
+    400 clamp(18px, 2vw, 24px)/1 Pretendard,
+    "Noto Sans KR",
+    sans-serif;
   white-space: nowrap;
 }
 
@@ -938,14 +955,22 @@
   pointer-events: none;
   opacity: 0.82;
   transform: translate(-50%, -50%);
-  transition: left 0.02s linear, top 0.02s linear, opacity 0.35s ease, transform 0.35s ease;
+  transition:
+    left 0.02s linear,
+    top 0.02s linear,
+    opacity 0.35s ease,
+    transform 0.35s ease;
   mix-blend-mode: screen;
 }
 
 .aura-orb.injecting {
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.16);
-  transition: left 0.8s cubic-bezier(0.22, 1, 0.36, 1), top 0.8s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.8s ease, transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  transition:
+    left 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    top 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.8s ease,
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .aura-orb-glow,
@@ -957,14 +982,25 @@
 }
 
 .aura-orb-glow {
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.88) 0 15%, color-mix(in srgb, var(--orb-secondary) 60%, transparent) 30%, color-mix(in srgb, var(--orb-primary) 32%, transparent) 54%, transparent 72%);
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.88) 0 15%,
+    color-mix(in srgb, var(--orb-secondary) 60%, transparent) 30%,
+    color-mix(in srgb, var(--orb-primary) 32%, transparent) 54%,
+    transparent 72%
+  );
   filter: blur(4px);
   animation: aura-orb-pulse 1.7s ease-in-out infinite alternate;
 }
 
 .aura-orb-core {
   inset: 22%;
-  background: radial-gradient(circle, rgba(255,255,255,0.92), color-mix(in srgb, var(--orb-secondary) 42%, transparent) 56%, transparent 72%);
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.92),
+    color-mix(in srgb, var(--orb-secondary) 42%, transparent) 56%,
+    transparent 72%
+  );
 }
 
 .aura-orb-ring {
@@ -975,12 +1011,32 @@
   box-shadow: 0 0 15px color-mix(in srgb, var(--orb-shadow) 48%, transparent);
 }
 
-.aura-orb-ring-one { transform: rotate(-24deg) scaleX(1.12) scaleY(0.64); animation: aura-orb-spin 2.8s linear infinite; }
-.aura-orb-ring-two { inset: 14%; transform: rotate(42deg) scaleX(0.72) scaleY(1.12); animation: aura-orb-spin 2.1s linear infinite reverse; }
-.aura-orb-ring-three { inset: 2%; transform: rotate(78deg) scaleX(1.05) scaleY(0.74); animation: aura-orb-spin 3.6s linear infinite; }
+.aura-orb-ring-one {
+  transform: rotate(-24deg) scaleX(1.12) scaleY(0.64);
+  animation: aura-orb-spin 2.8s linear infinite;
+}
+.aura-orb-ring-two {
+  inset: 14%;
+  transform: rotate(42deg) scaleX(0.72) scaleY(1.12);
+  animation: aura-orb-spin 2.1s linear infinite reverse;
+}
+.aura-orb-ring-three {
+  inset: 2%;
+  transform: rotate(78deg) scaleX(1.05) scaleY(0.74);
+  animation: aura-orb-spin 3.6s linear infinite;
+}
 
-@keyframes aura-orb-spin { to { rotate: 360deg; } }
-@keyframes aura-orb-pulse { to { transform: scale(1.08); opacity: 0.72; } }
+@keyframes aura-orb-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+@keyframes aura-orb-pulse {
+  to {
+    transform: scale(1.08);
+    opacity: 0.72;
+  }
+}
 
 .phase3-title {
   text-align: left;

@@ -10,7 +10,7 @@ export default function PhaseOverlay({
   auraColors,
   activeAccessoryId,
   recorderStatus,
-  captureSegment,
+  onFinalizeRecording,
 }) {
   const isOrbPhase = phase === "orb" || phase === "injecting";
 
@@ -27,11 +27,11 @@ export default function PhaseOverlay({
       activeAccessoryId: activeAccessoryId,
     });
 
-    if (captureSegment) {
-      console.log("비디오 녹화 종료 명령 전달");
-      captureSegment(0, { finish: true });
+    if (onFinalizeRecording) {
+      console.log("최종 키링 장면 녹화 명령 전달");
+      onFinalizeRecording();
     } else {
-      console.error("App.jsx에서 captureSegment 안 넘김");
+      console.error("App.jsx에서 onFinalizeRecording 안 넘김");
     }
 
     try {

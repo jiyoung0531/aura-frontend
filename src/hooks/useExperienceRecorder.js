@@ -184,9 +184,9 @@ export function useExperienceRecorder({ videoRef, trackingCanvasRef, webglCanvas
           ? width - (frame.x + frame.drawWidth * 0.25)
           : width * 0.75;
         const bagCenterY = frame
-          ? frame.y + frame.drawHeight * 0.47
-          : height * 0.47;
-        const bagWidth = width * 0.35;
+          ? frame.y + frame.drawHeight * 0.5
+          : height * 0.5;
+        const bagWidth = width * 0.62;
         const ratio = bagImage.naturalHeight / bagImage.naturalWidth || 1;
         const bagHeight = bagWidth * ratio;
         context.save();
