@@ -490,29 +490,47 @@ export function McmBag({
     selectedTexture.needsUpdate = true;
   }
 
+  {/*559번째 줄까지 변경*/ }
   useEffect(() => {
     bagMaterialsRef.current = [];
 
     scene.traverse((child) => {
       if (child.isMesh && child.material) {
         child.material.flatShading = false;
-
         child.geometry.computeVertexNormals();
 
         if (child.name === "bag_mesh" || child.name === "side_panel_mesh") {
-          child.material.map = selectedTexture;
-
-          child.material.color.set("#ffffff");
-
-          child.material.map.needsUpdate = true;
-
+          
+          //  가방 본체 설정 ( 아우라 색상만 입혀지도록)
+          child.material.map = null;
+          child.material.color.set("#ffffff"); 
+          
           bagMaterialsRef.current.push(child.material);
 
           if (child.material.normalMap) {
             child.material.normalScale.set(2, 2);
           }
-
           child.material.needsUpdate = true;
+
+          // 투명 패턴 껍데기 추가 (투명 배경 + 고유 로고 색상 살리기)
+          if (!child.userData.patternMesh) {
+            const patternMaterial = child.material.clone();
+            const patternMesh = new THREE.Mesh(child.geometry, patternMaterial);
+
+            patternMesh.material.map = selectedTexture;
+            patternMesh.material.color.set("#ffffff"); 
+            patternMesh.material.transparent = true;   
+            patternMesh.material.opacity = 1;
+
+            patternMesh.material.polygonOffset = true;
+            patternMesh.material.polygonOffsetFactor = -1;
+
+            child.add(patternMesh); 
+            child.userData.patternMesh = patternMesh;
+          } else {
+            child.userData.patternMesh.material.map = selectedTexture;
+            child.userData.patternMesh.material.needsUpdate = true;
+          }
         }
 
         if (
@@ -525,11 +543,8 @@ export function McmBag({
           child.name === "strong_handle_mesh"
         ) {
           child.material = child.material.clone();
-
           child.material.map = null;
-
           child.material.color.set("#5E3122");
-
           child.material.needsUpdate = true;
         }
 
