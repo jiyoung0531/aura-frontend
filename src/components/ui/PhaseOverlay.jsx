@@ -220,8 +220,8 @@ export default function PhaseOverlay({
       {phase === 3 && (
         <div className="phase3-content">
           <div className="phase3-title">
-            <h2>Choose Your Charm</h2>
-            <p>나만의 액세서리를 선택해 보세요.</p>
+           {/* <h2>Choose Your Charm</h2>*/}
+            {/*<p>나만의 액세서리를 선택해 보세요.</p>*/}
           </div>
         </div>
       )}

@@ -1,0 +1,326 @@
+.phase-ui-overlay.loading-screen,
+.phase-ui-overlay.exception-screen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  background-color: #ffffff !important;
+  z-index: 9999 !important;
+
+  /* 요소들을 위, 중간, 아래로 분산 배치 */
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 6vh 24px !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+}
+
+/* 2. 🌟 범인 검거: 문제의 '카드 껍데기'를 아예 투명 인간으로 만들기 */
+/* (이렇게 하면 그림자, 테두리, 배경색이 절대 나타날 수 없습니다) */
+.loading-content,
+.exception-content {
+  display: contents !important; 
+}
+
+/* 3. 가운데 스피너와 텍스트 묶음 */
+.center-group {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: auto 0 !important; /* 위아래 공간을 똑같이 밀어내서 완벽한 정중앙 배치 */
+}
+
+/* 4. 4개의 모서리 장식 (화면 진짜 끝에 고정) */
+.corner-frame {
+  position: absolute !important;
+  width: 24px !important;
+  height: 24px !important;
+  pointer-events: none !important;
+  filter: brightness(0) saturate(100%) invert(72%) sepia(0%) saturate(0%) hue-rotate(145deg) brightness(92%) contrast(88%) !important;
+}
+.corner-top-left { top: 24px !important; left: 24px !important; }
+.corner-top-right { top: 24px !important; right: 24px !important; transform: rotate(90deg) !important; }
+.corner-bottom-right { bottom: 24px !important; right: 24px !important; transform: rotate(180deg) !important; }
+.corner-bottom-left { bottom: 24px !important; left: 24px !important; transform: rotate(270deg) !important; }
+
+/* =======================================================
+   5. 개별 디자인 (로고, 스피너, 버튼 등)
+======================================================= */
+.top-logo {
+  width: 80px !important;
+  height: auto !important;
+  filter: brightness(0%) !important;
+}
+
+.bottom-logo {
+  width: 45px !important;
+  height: auto !important;
+  filter: invert(60%) sepia(50%) saturate(600%) hue-rotate(5deg) !important;
+}
+
+.spinner {
+  width: 70px !important;
+  height: 70px !important;
+  border: 6px solid #F4F0EA !important;
+  border-top: 6px solid #A68A61 !important;
+  border-radius: 50% !important;
+  animation: spin 1s linear infinite !important;
+  margin: 0 !important;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-title, .exception-title {
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  color: #222222 !important;
+  margin: 20px 0 12px 0 !important;
+}
+
+.exception-subtitle {
+  font-size: 14px !important;
+  color: #A68A61 !important;
+  margin: 0 0 20px 0 !important;
+}
+
+.loading-guidance {
+  background-color: #f3ede3 !important;
+  color: #555555 !important;
+  padding: 16px 0 !important;
+  border-radius: 12px !important;
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  width: 220px !important;
+  text-align: center !important;
+}
+
+.exception-buttons {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+.primary-btn {
+  background-color: #5E3122 !important;
+  color: #ffffff !important;
+  border: none !important;
+  padding: 14px 0 !important;
+  border-radius: 24px !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  width: 220px !important;
+  text-align: center !important;
+}
+
+.secondary-btn {
+  background-color: transparent !important;
+  color: #666666 !important;
+  border: none !important;
+  padding: 12px 0 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+}
+
+.error-icon {
+  width: 64px !important;
+  height: 64px !important;
+  margin: 0 !important;
+}
+.exception-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #222222;
+  margin: 0;
+}
+
+.exception-subtitle {
+  font-size: 14px;
+  color: #A68A61;
+  margin: -16px 0 0 0; 
+  font-weight: 600;
+}
+
+.exception-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center; 
+  gap: 12px;
+  width: 100%;
+  max-width: 320px;
+  margin-top: 20px;
+}
+
+.primary-btn {
+  background-color: #5E3122; 
+  color: #ffffff;            
+  border: none;
+  padding: 14px 0;
+  border-radius: 24px;
+  font-size: 16px !important;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 190px !important; 
+  display: block !important;
+  margin: 0 auto !important;
+}
+
+.primary-btn:active {
+  background-color: #E5E0D8;
+}
+
+.secondary-btn {
+  background-color: transparent;
+  color: #666666;
+  border: none;
+  padding: 12px 0;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+@media screen and (max-width: 480px) {
+  .phase-ui-overlay.loading-screen,
+  .phase-ui-overlay.exception-screen {
+    padding: 0;
+  }
+
+  .loading-content, 
+  .exception-content {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    aspect-ratio: unset;
+    border-radius: 0;
+    justify-content: center;
+    gap: 24px;
+  }
+}
+
+.corner-frame {
+  position: absolute !important;
+  width: 24px;
+  height: 24px;
+}
+.corner-top-left { top: 24px !important; left: 24px !important; }
+.corner-top-right { top: 24px !important; right: 24px !important; transform: rotate(90deg); }
+.corner-bottom-right { bottom: 24px !important; right: 24px !important; transform: rotate(180deg); }
+.corner-bottom-left { bottom: 24px !important; left: 24px !important; transform: rotate(270deg); }
+
+.top-logo {
+  width: 70px;
+  height: auto;
+  margin-top: 8px;
+  filter: brightness(0%);
+}
+
+.bottom-logo {
+  width: 36px;
+  height: auto;
+  margin-bottom: 8px;
+  filter: invert(60%) sepia(50%) saturate(600%) hue-rotate(5deg);
+}
+
+.center-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px; 
+  width: 100%;
+}
+
+.loading-content, 
+.exception-content {
+  background-color: #ffffff;
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 9 / 16;      
+  max-height: 85vh;
+  border-radius: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 32px 24px;
+  box-sizing: border-box;
+}
+
+.spinner {
+  width: 64px;
+  height: 64px;
+  border: 6px solid #F4F0EA;
+  border-top: 6px solid #A68A61;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0;
+}
+
+.loading-guidance {
+  background-color: #f3ede3; 
+  color: #555555;
+  padding: 14px 0;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  width: 100%;
+  max-width: 300px;
+  text-align: center;
+  margin-top: 12px;
+}
+
+.error-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0;
+}
+
+.exception-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #222222;
+  margin: 0;
+}
+
+.exception-subtitle {
+  font-size: 14px;
+  color: #A68A61;
+  margin: -8px 0 0 0;
+}
+
+.exception-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 300px;
+  margin-top: 12px;
+}
+
+.phase3-title h2 {
+  /* 24px(최소) ~ 화면 폭의 3% ~ 40px(최대) 사이에서 자동으로 커짐 */
+  font-size: clamp(22px, 3vw, 40px) !important;
+  line-height: 1.2;
+  margin-left: 8px;
+}
+
+/* 2. "나만의 액세서리를 선택해 보세요." 부제목 부분 */
+.phase3-title p {
+  /* 14px(최소) ~ 화면 폭의 1.5% ~ 20px(최대) 사이에서 자동으로 커짐 */
+  font-size: clamp(18px, 1.5vw, 20px) !important;
+  margin-top: 8px;
+  margin-left: 8px;
+}
