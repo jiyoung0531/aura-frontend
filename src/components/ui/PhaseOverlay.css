@@ -310,17 +310,4 @@
   margin-top: 12px;
 }
 
-.phase3-title h2 {
-  /* 24px(최소) ~ 화면 폭의 3% ~ 40px(최대) 사이에서 자동으로 커짐 */
-  font-size: clamp(22px, 3vw, 40px) !important;
-  line-height: 1.2;
-  margin-left: 8px;
-}
 
-/* 2. "나만의 액세서리를 선택해 보세요." 부제목 부분 */
-.phase3-title p {
-  /* 14px(최소) ~ 화면 폭의 1.5% ~ 20px(최대) 사이에서 자동으로 커짐 */
-  font-size: clamp(18px, 1.5vw, 20px) !important;
-  margin-top: 8px;
-  margin-left: 8px;
-}
