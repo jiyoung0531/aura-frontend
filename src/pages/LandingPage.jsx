@@ -166,11 +166,14 @@ export default function LandingPage({
     (product) => product.product_type === "ACCESSORY",
   );
 
-  const hasVideo = false;
+  const hasVideo =
     userData.video_status === "READY" && Boolean(userData.video_url);
-  const isVideoFailed = ["FAILED", "FAIL", "ERROR"].includes(
-    String(userData.video_status || "").toUpperCase(),
-  );
+
+  const isVideoFailed =
+    !hasVideo &&
+    ["FAILED", "FAIL", "ERROR"].includes(
+      String(userData.video_status || "").toUpperCase()
+    );
 
   /*
    * =========================================================
@@ -366,7 +369,7 @@ export default function LandingPage({
             alt="Video generation failed"
           />
         ) : (
-          <div className="video-placeholder">체험 영상을 준비 중입니다...</div>
+          <div className="video-placeholder">Video generation failed</div>
         )}
 
         {hasVideo && (
