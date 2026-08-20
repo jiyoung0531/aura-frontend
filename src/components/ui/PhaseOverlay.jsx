@@ -23,7 +23,7 @@ export default function PhaseOverlay({
   const preparationStartedAtRef = useRef(0);
   const progressTimerRef = useRef(null);
 
-  useEffect(() => {
+useEffect(() => {
     return () => {
       if (progressTimerRef.current) {
         window.clearInterval(progressTimerRef.current);
@@ -80,84 +80,107 @@ export default function PhaseOverlay({
       }
 
       let qrUrl = null;
-      let attempts = 0;
-      const videoDeadlineAt = preparationStartedAtRef.current + 21000;
+      const startTime = preparationStartedAtRef.current;
 
-      while (!qrUrl && attempts < 30) {
-        attempts++;
-        console.log(`백엔드 비디오 상태 확인 시도 중... (${attempts}/30)`);
+      while (!qrUrl) {
+        const elapsed = Date.now() - startTime;
+        
+        if (elapsed >= 12000) {
+          console.log("12초 경과: 비디오 상태 확인 종료");
+          break; 
+        }
+
+        console.log("백엔드 비디오 상태 확인 시도 중...");
 
         try {
           const statusResult = await getAuraOutputStatus(publicId);
-          const videoStatus =
-            statusResult?.video_status || statusResult?.data?.video_status;
-          const videoTimedOut = Date.now() >= videoDeadlineAt;
+          const videoStatus = statusResult?.video_status || statusResult?.data?.video_status;
 
-          if (
-            videoStatus === "READY" ||
-            videoStatus === "FAILED" ||
-            videoTimedOut
-          ) {
-            console.log(
-              videoStatus === "READY"
-                ? "비디오 준비 완료, Finalize 요청 전송..."
-                : "비디오 제작 실패/시간 초과, 실패 결과로 Finalize 요청 전송...",
-            );
-
+          if (videoStatus === "READY") {
+            console.log("비디오 준비 완료! Finalize 요청 전송...");
             const finalizeResult = await finalizeAuraSession(
               publicId,
               auraColors,
-              activeAccessoryId,
+              activeAccessoryId
             );
-            console.log("Finalize 최종 응답:", finalizeResult);
-
             qrUrl =
               finalizeResult?.data?.qr_image_url ||
               finalizeResult?.qr_image_url ||
               statusResult?.data?.qr_image_url ||
               statusResult?.qr_image_url;
-
-            if (qrUrl) {
-              console.log("QR 생성 완료:", qrUrl);
-              break;
-            }
+            
+            if (qrUrl) break; 
           }
         } catch (pollErr) {
-          console.log("아직 처리 중, 2초 후 재시도...", pollErr);
+          console.log("상태 확인 중 대기...", pollErr);
         }
 
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 3000));
       }
 
       if (qrUrl) {
+        console.log("비디오 생성 성공. QR 화면으로 바로 이동!");
         if (progressTimerRef.current) {
           window.clearInterval(progressTimerRef.current);
           progressTimerRef.current = null;
         }
         setPreparationProgress(100);
-        const elapsed = Date.now() - preparationStartedAtRef.current;
-        const minimumDisplayTime = Math.max(0, 3000 - elapsed);
-        await new Promise((resolve) => setTimeout(resolve, minimumDisplayTime));
         setIsPreparing(false);
         setQrImageUrl(qrUrl);
+
       } else {
-        if (progressTimerRef.current) {
-          window.clearInterval(progressTimerRef.current);
-          progressTimerRef.current = null;
+        console.log("비디오 생성 지연/실패. 21초까지 대기 시작...");
+        const elapsedNow = Date.now() - startTime;
+        const remainingTo21s = 21000 - elapsedNow; 
+        
+        // 남은 시간만큼 로딩 화면을 계속 유지하며 대기
+        if (remainingTo21s > 0) {
+          await new Promise((resolve) => setTimeout(resolve, remainingTo21s));
         }
-        setIsPreparing(false);
-        alert("QR 생성 시간이 초과되었습니다. 다시 시도해 주세요.");
-        setIsGenerating(false);
+
+        console.log("21초 대기 완료. 백엔드 예외 처리용 Finalize 요청 전송...");
+        try {
+          const finalizeResult = await finalizeAuraSession(
+            publicId,
+            auraColors,
+            activeAccessoryId
+          );
+          
+          qrUrl = finalizeResult?.data?.qr_image_url || finalizeResult?.qr_image_url;
+
+          if (progressTimerRef.current) {
+            window.clearInterval(progressTimerRef.current);
+            progressTimerRef.current = null;
+          }
+          setPreparationProgress(100);
+          setIsPreparing(false);
+
+          if (qrUrl) {
+            setQrImageUrl(qrUrl); // 비디오가 null이어도 백엔드가 만들어준 진짜 QR 화면 띄우기
+          } else {
+            alert("QR 발급에 실패했습니다. 다시 시도해 주세요.");
+            setIsGenerating(false);
+          }
+        } catch (error) {
+          console.error("대체 QR 요청 중 에러:", error);
+          if (progressTimerRef.current) {
+            window.clearInterval(progressTimerRef.current);
+            progressTimerRef.current = null;
+          }
+          setIsPreparing(false);
+          setIsGenerating(false);
+          alert("네트워크 오류가 발생했습니다.");
+        }
       }
     } catch (error) {
-      console.error("완료 처리 중 에러 발생:", error);
+      console.error("완료 처리 최상위 에러:", error);
       if (progressTimerRef.current) {
         window.clearInterval(progressTimerRef.current);
         progressTimerRef.current = null;
       }
       setIsPreparing(false);
-      alert("처리 중 오류가 발생했습니다.");
       setIsGenerating(false);
+      alert("처리 중 오류가 발생했습니다.");
     }
   };
 
@@ -219,9 +242,13 @@ export default function PhaseOverlay({
 
       {phase === 3 && (
         <div className="phase3-content">
-          <div className="phase3-title">
-           {/* <h2>Choose Your Charm</h2>*/}
-            {/*<p>나만의 액세서리를 선택해 보세요.</p>*/}
+         <div className="phase3-title" style={{ width: "100%", display: "block", marginTop: "95px" }}>
+            <h2 style={{ fontSize: "clamp(20px, 3.5vw, 50px)", whiteSpace: "nowrap", color: "#ffffff", marginLeft: "20px", lineHeight: "1.2" }}>
+              Choose Your Charm
+            </h2>
+            <p style={{ fontSize: "clamp(14px, 2.5vw, 24px)", whiteSpace: "nowrap", color: "#ffffff", marginLeft: "20px", marginTop: "8px" }}>
+             나만의 액세서리를 선택해 보세요.
+            </p>
           </div>
         </div>
       )}

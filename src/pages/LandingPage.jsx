@@ -5,6 +5,7 @@ import html2canvas from "html2canvas";
 import { getLanding } from "../api/auraApi";
 import "./LandingPage.css";
 
+
 const API_BASE = import.meta.env.VITE_API_BASE;
 
 const BAG_IMG_URL =
@@ -165,7 +166,7 @@ export default function LandingPage({
     (product) => product.product_type === "ACCESSORY",
   );
 
-  const hasVideo =
+  const hasVideo = false;
     userData.video_status === "READY" && Boolean(userData.video_url);
   const isVideoFailed = ["FAILED", "FAIL", "ERROR"].includes(
     String(userData.video_status || "").toUpperCase(),
@@ -361,7 +362,7 @@ export default function LandingPage({
         ) : isVideoFailed ? (
           <img
             className="video-failure-image"
-            src="/failpage.png"
+            src="/failpage.svg"
             alt="Video generation failed"
           />
         ) : (
