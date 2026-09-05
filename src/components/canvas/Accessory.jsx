@@ -33,10 +33,27 @@ export function Accessory({
     }
   }, [actions]);
 
+  // 부착 실행 로직 분리 (중복 방지)
+  const triggerAttach = () => {
+    if (!isAttached) { 
+      attachSound.currentTime = 0; 
+      attachSound.play().catch(() => {});
+    }
+    
+    if (onToggleAttach) onToggleAttach(); 
+    
+    if (actions['TiltAnimation']) {
+      actions['TiltAnimation'].reset().play();
+    }
+
+    // 중복 실행 방지
+    hoverTimer.current = 0; 
+    canToggleRef.current = false; 
+  };
+
   useFrame((state, delta) => {
     if (!groupRef.current) return;
 
-    // 1. 손 충돌 감지
     if (handPosRef?.current) {
       const x = (handPosRef.current.x / size.width) * 2 - 1;
       const y = -(handPosRef.current.y / size.height) * 2 + 1;
@@ -47,21 +64,8 @@ export function Accessory({
       if (intersects.length > 0) {
         if (canToggleRef.current) {
           hoverTimer.current += delta; 
-          if (hoverTimer.current >= 1.0) {
-            
-           if (!isAttached) { 
-              attachSound.currentTime = 0; 
-              attachSound.play().catch(() => {});
-            }
-            
-            if (onToggleAttach) onToggleAttach(); 
-            
-            hoverTimer.current = 0; 
-            canToggleRef.current = false; 
-
-            if (actions['TiltAnimation']) {
-              actions['TiltAnimation'].reset().play();
-            }
+          if (hoverTimer.current >= 1.0) { 
+            triggerAttach(); 
           }
         }
       } else {
@@ -94,8 +98,16 @@ export function Accessory({
     }
   });
 
-  return (
-    <group ref={groupRef}>
+return (
+    <group 
+      ref={groupRef} 
+      onClick={(e) => {
+        e.stopPropagation(); 
+        if (canToggleRef.current) {
+          triggerAttach();
+        }
+      }}
+    >
       <primitive object={scene} scale={scale} />
       {/* 악세사리 부착 인식 범위 확대 */}
       <mesh position={[0, -0.22, 0]}>
