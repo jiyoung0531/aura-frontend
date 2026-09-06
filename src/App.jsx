@@ -15,7 +15,6 @@ import {
 } from "./api/auraApi";
 import { useExperienceRecorder } from "./hooks/useExperienceRecorder";
 import LandingPage from "./pages/LandingPage";
-import { attachAccessory } from "./api/auraApi";
 
 const INITIAL_BAG_YAW = Math.PI / 12;
 const INITIAL_BAG_PITCH = 0;
@@ -1292,8 +1291,6 @@ export default function App() {
               .map((color) => color.color)
               .filter(Boolean)}
             activeAccessoryId={activeAccessoryId}
-            //recorderStatus={status}
-            recorderStatus={recordingStatus}
             onFinalizeRecording={handleFinalizeRecording}
           />
           <AuraOrbOverlay
