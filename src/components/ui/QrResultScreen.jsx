@@ -1,4 +1,3 @@
-import React from 'react';
 import './QrResultScreen.css'; // CSS 파일 연결
 
 export default function QrResultScreen({ qrImageUrl, onReset }) {

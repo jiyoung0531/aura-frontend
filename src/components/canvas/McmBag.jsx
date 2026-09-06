@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { useGLTF, useTexture } from "@react-three/drei";
 import { Accessory } from "./Accessory";
 import { useInteractionRecorder } from "../../hooks/useInteractionRecorder";
-import { attachAccessory } from "../../api/auraApi";
 
 const BAG_MODEL_URL = "/models/mcm_final_8.glb";
 
@@ -171,7 +170,9 @@ export function McmBag({
           await audioCtxRef.current.decodeAudioData(arrayBuffer);
 
         audioBuffers.current[key] = audioBuffer;
-      } catch (error) {}
+      } catch {
+        // 사운드 로딩 실패 시 해당 효과음만 생략합니다.
+      }
     };
 
     loadSound("leather", "/sounds/leather.mp3");
@@ -202,7 +203,9 @@ export function McmBag({
       if (activeSources.current[category]) {
         try {
           activeSources.current[category].stop();
-        } catch (e) {}
+        } catch {
+          // 이미 종료된 소스는 별도 처리하지 않습니다.
+        }
       }
 
       const source = audioCtxRef.current.createBufferSource();
@@ -222,7 +225,9 @@ export function McmBag({
     Object.values(activeSources.current).forEach((source) => {
       try {
         source.stop();
-      } catch (e) {}
+      } catch {
+        // 이미 종료된 소스는 별도 처리하지 않습니다.
+      }
     });
 
     activeSources.current = {};
