@@ -11,7 +11,6 @@ export default function PhaseOverlay({
   publicId,
   auraColors,
   activeAccessoryId,
-  recorderStatus,
   onFinalizeRecording,
 }) {
   const isOrbPhase = phase === "orb" || phase === "injecting";
