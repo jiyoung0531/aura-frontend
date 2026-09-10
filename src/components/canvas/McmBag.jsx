@@ -25,8 +25,52 @@ const TEXTURE_URLS = {
  * 2 = Visetos Original Keyring
  * 3 = MCM Visetos Park Bear Charm
  */
-const ORIGINAL_KEYRING_ID = 2;
-const TEDDY_KEYRING_ID = 3;
+
+const ACCESSORY_DATA = {
+  ORIGINAL: { 
+    id: 2, 
+    modelUrl: "/models/original_keyring.glb", 
+    soundUrl: "/sounds/original_sound.mp3",
+    scale: 3.5,
+    floatY: -0.52,
+    attachOffset: [0.38, 0.56, 0.43],
+    attachRotation: [0, Math.PI / 4, 0]
+  },
+  BEAR: { 
+    id: 3, 
+    modelUrl: "/models/teddy_keyring.glb", 
+    soundUrl: "/sounds/teddy_sound.mp3",
+    scale: 3.5,
+    floatY: -0.52,
+    attachOffset: [0.38, 0.56, 0.43],
+    attachRotation: [0, -Math.PI / 2, 0]
+  },
+  DACHSHUND: { 
+    id: 4, 
+    modelUrl: "/models/key_ring.glb", 
+    soundUrl: "/sounds/original_sound.mp3",
+    scale: 3.3,
+    floatY: -0.92,
+    attachOffset: [0.31, 0.14, 0.43],
+    attachRotation: [0, -Math.PI / 9, 0]
+  },
+   RABBIT: { 
+    id: 5, 
+    modelUrl: "/models/clasp_hook.glb", 
+    soundUrl: "/sounds/teddy_sound.mp3",
+    scale: 3.1, 
+    floatY: -0.99,
+    attachOffset: [0.39, 0.09, 0.43], 
+    attachRotation: [0, Math.PI / 9, 0] 
+  },
+};
+
+const MOOD_ACCESSORIES = {
+  street: [ACCESSORY_DATA.RABBIT, ACCESSORY_DATA.ORIGINAL],
+  romantic: [ACCESSORY_DATA.RABBIT, ACCESSORY_DATA.BEAR],
+  classic: [ACCESSORY_DATA.ORIGINAL, ACCESSORY_DATA.DACHSHUND],
+  minimal: [ACCESSORY_DATA.BEAR, ACCESSORY_DATA.DACHSHUND],
+};
 
 const resolvePartName = (meshName) => {
   const name = meshName.toLowerCase();
@@ -64,6 +108,7 @@ export function McmBag({
   activeAccessory,
   setActiveAccessory,
 }) {
+
   const { scene } = useGLTF(BAG_MODEL_URL);
 
   const textureUrls = useMemo(
@@ -524,7 +569,7 @@ export function McmBag({
         child.material.flatShading = false;
         child.geometry.computeVertexNormals();
 
-        // 🎒 1. [메인 컬러] 가방 본체 (auraPalette[0] 적용)
+        //  1. [메인 컬러] 가방 본체 (auraPalette[0] 적용)
         if (child.name === "bag_mesh" || child.name === "side_panel_mesh") {
           child.material.map = null;
           child.material.color.set("#ffffff");
@@ -615,8 +660,12 @@ export function McmBag({
   }, [scene, textures, currentMood, phase, isInfused, selectedTexture]);
 
   const bagScale = phase === 3 ? 3.4 : 5.9;
-
   const bagPosition = phase === 3 ? [0, -0.38, 0] : [0, -1.3, 0];
+
+  const currentMoodKey = currentMood?.toLowerCase() || "street";
+  const activeAccessories = MOOD_ACCESSORIES[currentMoodKey] || MOOD_ACCESSORIES.street;
+  const leftAcc = activeAccessories[0]; 
+  const rightAcc = activeAccessories[1];
 
   return (
     <group>
@@ -638,8 +687,7 @@ export function McmBag({
       {phase === 3 && (
         <>
           {/* ========================================
-              오리지널 키링
-              백엔드 product_id = 2
+              왼쪽 악세서리
           ======================================== */}
           <group
             onPointerDown={(e) => {
@@ -647,11 +695,8 @@ export function McmBag({
 
               enter({
                 phase: "PHASE3_STYLING",
-
                 targetType: "ACCESSORY",
-
-                targetProductId: ORIGINAL_KEYRING_ID,
-
+                targetProductId: leftAcc.id,
                 gesture: "PRESS",
               });
             }}
@@ -665,30 +710,21 @@ export function McmBag({
             }}
           >
             <Accessory
-              modelUrl="/models/original_keyring.glb"
+              modelUrl={leftAcc.modelUrl}
               handPosRef={handPosRef}
               targetObject={zipperMesh}
-              initialFloatPosition={new THREE.Vector3(-0.3, -0.52, 0.5)}
-              attachmentOffset={[0.38, 0.56, 0.43]}
-              attachmentRotation={[0, Math.PI / 4, 0]}
-              scale={3.5}
-              attachSoundUrl="/sounds/original_sound.mp3"
-              isAttached={activeAccessory === ORIGINAL_KEYRING_ID}
+              initialFloatPosition={new THREE.Vector3(-0.3, leftAcc.floatY, 0.5)}
+              attachmentOffset={leftAcc.attachOffset}
+              attachmentRotation={leftAcc.attachRotation}
+              scale={leftAcc.scale}
+              attachSoundUrl={leftAcc.soundUrl}
+              isAttached={activeAccessory === leftAcc.id}
               onToggleAttach={() => {
-                const next =
-                  activeAccessory === ORIGINAL_KEYRING_ID
-                    ? null
-                    : ORIGINAL_KEYRING_ID;
-
+                const next = activeAccessory === leftAcc.id ? null : leftAcc.id;
                 handleToggleAttach(next !== null);
-
                 setActiveAccessory(next);
-
-                if (next === ORIGINAL_KEYRING_ID) {
-                  window.sessionStorage.setItem(
-                    "aura_active_accessory_id",
-                    String(ORIGINAL_KEYRING_ID),
-                  );
+                if (next === leftAcc.id) {
+                  window.sessionStorage.setItem("aura_active_accessory_id", String(leftAcc.id));
                 } else {
                   window.sessionStorage.removeItem("aura_active_accessory_id");
                 }
@@ -697,20 +733,15 @@ export function McmBag({
           </group>
 
           {/* ========================================
-              테디베어 키링
-              백엔드 product_id = 3
+              오른쪽 악세서리
           ======================================== */}
           <group
             onPointerDown={(e) => {
               e.stopPropagation();
-
               enter({
                 phase: "PHASE3_STYLING",
-
                 targetType: "ACCESSORY",
-
-                targetProductId: TEDDY_KEYRING_ID,
-
+                targetProductId: rightAcc.id,
                 gesture: "PRESS",
               });
             }}
@@ -724,30 +755,21 @@ export function McmBag({
             }}
           >
             <Accessory
-              modelUrl="/models/teddy_keyring.glb"
+              modelUrl={rightAcc.modelUrl}
               handPosRef={handPosRef}
               targetObject={zipperMesh}
-              initialFloatPosition={new THREE.Vector3(0.3, -0.52, 0.5)}
-              attachmentOffset={[0.38, 0.56, 0.43]}
-              attachmentRotation={[0, -Math.PI / 2, 0]}
-              scale={3.5}
-              attachSoundUrl="/sounds/teddy_sound.mp3"
-              isAttached={activeAccessory === TEDDY_KEYRING_ID}
+              initialFloatPosition={new THREE.Vector3(0.3, rightAcc.floatY, 0.5)}
+              attachmentOffset={rightAcc.attachOffset}
+              attachmentRotation={rightAcc.attachRotation}
+              scale={rightAcc.scale}
+              attachSoundUrl={rightAcc.soundUrl}
+              isAttached={activeAccessory === rightAcc.id}
               onToggleAttach={() => {
-                const next =
-                  activeAccessory === TEDDY_KEYRING_ID
-                    ? null
-                    : TEDDY_KEYRING_ID;
-
+                const next = activeAccessory === rightAcc.id ? null : rightAcc.id;
                 handleToggleAttach(next !== null);
-
                 setActiveAccessory(next);
-
-                if (next === TEDDY_KEYRING_ID) {
-                  window.sessionStorage.setItem(
-                    "aura_active_accessory_id",
-                    String(TEDDY_KEYRING_ID),
-                  );
+                if (next === rightAcc.id) {
+                  window.sessionStorage.setItem("aura_active_accessory_id", String(rightAcc.id));
                 } else {
                   window.sessionStorage.removeItem("aura_active_accessory_id");
                 }
