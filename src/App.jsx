@@ -15,10 +15,14 @@ import {
 } from "./api/auraApi";
 import { useExperienceRecorder } from "./hooks/useExperienceRecorder";
 import LandingPage from "./pages/LandingPage";
-import { attachAccessory } from "./api/auraApi";
 
 const INITIAL_BAG_YAW = Math.PI / 12;
 const INITIAL_BAG_PITCH = 0;
+const CONTROL_HAND_SWITCH_RATIO = 1.04;
+const CONTROL_HAND_SWITCH_HOLD_MS = 250;
+const CONTROL_HAND_SIZE_SMOOTHING = 0.2;
+const CONTROL_HAND_TRACK_MAX_DISTANCE = 0.2;
+const CONTROL_HAND_TRACK_TTL_MS = 500;
 const DEFAULT_AURA_RESULT = {
   style: "Street",
   matchPercentage: 94,
@@ -272,6 +276,11 @@ export default function App() {
   const hoveredMaterialRef = useRef(null); // 가방에서 터치된 재질 이름
   const cursorRef = useRef({ x: null, y: null }); // 커서 속도 변조용
   const fistConfidenceRef = useRef(0);
+  const controlHandTracksRef = useRef([]);
+  const nextControlHandTrackIdRef = useRef(1);
+  const selectedControlHandIdRef = useRef(null);
+  const controlHandSwitchCandidateRef = useRef({ id: null, startedAt: null });
+  const selectedControlHandMissingSinceRef = useRef(null);
   const openHandStartedAtRef = useRef(null);
   const showReachPromptRef = useRef(false);
   const navigationTriggeredRef = useRef(false);
@@ -674,7 +683,160 @@ export default function App() {
         if (movedTowardCamera) triggerOrbInjection();
       }
 
-      const landmarks = results.landmarks?.[0];
+      const now = performance.now();
+      const previousTracks = controlHandTracksRef.current.filter(
+        (track) => now - track.lastSeenAt <= CONTROL_HAND_TRACK_TTL_MS,
+      );
+      const measurements = hands
+        .map((hand) => {
+          const palmPoints = [hand[0], hand[5], hand[9], hand[13], hand[17]];
+          const validPalmPoints = palmPoints.filter(Boolean);
+          if (validPalmPoints.length < 3) return null;
+
+          const center = validPalmPoints.reduce(
+            (sum, point) => ({
+              x: sum.x + point.x / validPalmPoints.length,
+              y: sum.y + point.y / validPalmPoints.length,
+            }),
+            { x: 0, y: 0 },
+          );
+          const palmWidth =
+            hand[5] && hand[17]
+              ? Math.hypot(hand[5].x - hand[17].x, hand[5].y - hand[17].y)
+              : 0;
+          const wristToMiddle =
+            hand[0] && hand[9]
+              ? Math.hypot(hand[0].x - hand[9].x, hand[0].y - hand[9].y)
+              : 0;
+
+          return {
+            landmarks: hand,
+            center,
+            rawSize: Math.max(palmWidth, wristToMiddle, 0.08),
+          };
+        })
+        .filter(Boolean);
+
+      const unusedPreviousTracks = new Set(
+        previousTracks.map((track) => track.id),
+      );
+      const trackedHands = measurements.map((measurement) => {
+        let matchedTrack = null;
+        let closestDistance = CONTROL_HAND_TRACK_MAX_DISTANCE;
+
+        previousTracks.forEach((track) => {
+          if (!unusedPreviousTracks.has(track.id)) return;
+          const distance = Math.hypot(
+            measurement.center.x - track.center.x,
+            measurement.center.y - track.center.y,
+          );
+          if (distance < closestDistance) {
+            closestDistance = distance;
+            matchedTrack = track;
+          }
+        });
+
+        if (matchedTrack) unusedPreviousTracks.delete(matchedTrack.id);
+        const id =
+          matchedTrack?.id ?? nextControlHandTrackIdRef.current++;
+        const smoothedSize = matchedTrack
+          ? matchedTrack.smoothedSize * (1 - CONTROL_HAND_SIZE_SMOOTHING) +
+            measurement.rawSize * CONTROL_HAND_SIZE_SMOOTHING
+          : measurement.rawSize;
+
+        return {
+          ...measurement,
+          id,
+          smoothedSize,
+          lastSeenAt: now,
+        };
+      });
+
+      controlHandTracksRef.current = [
+        ...trackedHands,
+        ...previousTracks.filter((track) => unusedPreviousTracks.has(track.id)),
+      ];
+
+      let didSwitchControlHand = false;
+      let selectedHand = trackedHands.find(
+        (hand) => hand.id === selectedControlHandIdRef.current,
+      );
+
+      if (selectedControlHandIdRef.current === null && trackedHands.length) {
+        selectedHand = trackedHands.reduce((largest, hand) =>
+          hand.smoothedSize > largest.smoothedSize ? hand : largest,
+        );
+        selectedControlHandIdRef.current = selectedHand.id;
+      } else if (selectedHand) {
+        selectedControlHandMissingSinceRef.current = null;
+        const challenger = trackedHands
+          .filter((hand) => hand.id !== selectedHand.id)
+          .sort((a, b) => b.smoothedSize - a.smoothedSize)[0];
+
+        if (
+          challenger &&
+          challenger.smoothedSize >=
+            selectedHand.smoothedSize * CONTROL_HAND_SWITCH_RATIO
+        ) {
+          const candidate = controlHandSwitchCandidateRef.current;
+          if (candidate.id !== challenger.id) {
+            controlHandSwitchCandidateRef.current = {
+              id: challenger.id,
+              startedAt: now,
+            };
+          } else if (now - candidate.startedAt >= CONTROL_HAND_SWITCH_HOLD_MS) {
+            selectedControlHandIdRef.current = challenger.id;
+            selectedHand = challenger;
+            didSwitchControlHand = true;
+            controlHandSwitchCandidateRef.current = {
+              id: null,
+              startedAt: null,
+            };
+          }
+        } else {
+          controlHandSwitchCandidateRef.current = { id: null, startedAt: null };
+        }
+      } else if (selectedControlHandIdRef.current !== null) {
+        if (selectedControlHandMissingSinceRef.current === null) {
+          selectedControlHandMissingSinceRef.current = now;
+        }
+
+        const fallbackHand = trackedHands.sort(
+          (a, b) => b.smoothedSize - a.smoothedSize,
+        )[0];
+        const candidate = controlHandSwitchCandidateRef.current;
+        if (fallbackHand) {
+          if (candidate.id !== fallbackHand.id) {
+            controlHandSwitchCandidateRef.current = {
+              id: fallbackHand.id,
+              startedAt: now,
+            };
+          } else if (
+            now - selectedControlHandMissingSinceRef.current >=
+              CONTROL_HAND_SWITCH_HOLD_MS &&
+            now - candidate.startedAt >= CONTROL_HAND_SWITCH_HOLD_MS
+          ) {
+            selectedControlHandIdRef.current = fallbackHand.id;
+            selectedControlHandMissingSinceRef.current = null;
+            selectedHand = fallbackHand;
+            didSwitchControlHand = true;
+            controlHandSwitchCandidateRef.current = {
+              id: null,
+              startedAt: null,
+            };
+          }
+        } else {
+          controlHandSwitchCandidateRef.current = { id: null, startedAt: null };
+        }
+      }
+
+      if (didSwitchControlHand) {
+        fistConfidenceRef.current = 0;
+        wasFistRef.current = false;
+        openHandStartedAtRef.current = null;
+      }
+
+      const landmarks = selectedHand?.landmarks;
       if (landmarks?.length) {
         const palmPoints = [
           landmarks[0],
@@ -1129,8 +1291,6 @@ export default function App() {
               .map((color) => color.color)
               .filter(Boolean)}
             activeAccessoryId={activeAccessoryId}
-            //recorderStatus={status}
-            recorderStatus={recordingStatus}
             onFinalizeRecording={handleFinalizeRecording}
           />
           <AuraOrbOverlay
