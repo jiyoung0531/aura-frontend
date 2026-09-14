@@ -11,18 +11,28 @@ const API_BASE = import.meta.env.VITE_API_BASE;
 const BAG_IMG_URL =
   "https://storage.googleapis.com/aura-assets-2026/products/bag_01.png";
 
-const ACC_NORMAL_URL =
-  "https://storage.googleapis.com/aura-assets-2026/products/acc_01.png";
-
-const ACC_BEAR_URL =
-  "https://storage.googleapis.com/aura-assets-2026/products/acc_02.png";
-
-// 실제 백엔드 product_id
-const NORMAL_ACCESSORY_ID = 2;
-const BEAR_ACCESSORY_ID = 3;
-
-const NORMAL_ACCESSORY_NAME = "Visetos Original Keyring";
-const BEAR_ACCESSORY_NAME = "MCM Visetos Park Bear Charm";
+const ACCESSORY_MAP = {
+  2: {
+    name: "Visetos Original Keyring",
+    imgUrl: "https://storage.googleapis.com/aura-assets-2026/products/acc_01.png",
+    purchaseUrl: "https://kr.mcmworldwide.com/"
+  },
+  3: {
+    name: "MCM Visetos Park Bear Charm",
+    imgUrl: "https://storage.googleapis.com/aura-assets-2026/products/acc_02.png",
+    purchaseUrl: "https://kr.mcmworldwide.com/"
+  },
+  30001: {
+    name: "Aren 비세토스 닥스훈트 2D 참",
+    imgUrl: "https://storage.googleapis.com/aura-assets-2026/products/acc_03.png",
+    purchaseUrl: "https://kr.mcmworldwide.com/ko_KR/%EA%B0%80%EB%B0%A9/%EC%8A%A4%ED%8A%B8%EB%9E%A9-%EC%95%A1%EC%84%B8%EC%84%9C%EB%A6%AC/aren-%EB%B9%84%EC%84%B8%ED%86%A0%EC%8A%A4-%EB%8B%A5%EC%8A%A4%ED%9B%88%ED%8A%B8-2d-%EC%B0%B8/MXZGSTA19CO001.html?cgid=bags-bag-accessories"
+  },
+  30002: {
+    name: "Aren 비세토스 레빗 참",
+    imgUrl: "https://storage.googleapis.com/aura-assets-2026/products/acc_04.png",
+    purchaseUrl: "https://kr.mcmworldwide.com/ko_KR/%EA%B0%80%EB%B0%A9/%EC%8A%A4%ED%8A%B8%EB%9E%A9-%EC%95%A1%EC%84%B8%EC%84%9C%EB%A6%AC/aren-%EB%B9%84%EC%84%B8%ED%86%A0%EC%8A%A4-%EB%A0%88%EB%B9%97-%EC%B0%B8/MXZGATA094B001.html?cgid=bags-bag-accessories"
+  }
+};
 
 const today = new Intl.DateTimeFormat("ko-KR", {
   year: "numeric",
@@ -37,7 +47,7 @@ const FALLBACK_DATA = {
   bagName: "Stark Side Stud Visetos Backpack",
   auraColors: ["#FFA1C5", "#707ABB", "#838383"],
   mood: "Street Energy",
-  styling: NORMAL_ACCESSORY_NAME,
+  styling: "Visetos Original Keyring",
   forgedAt: "MCM Cheongdam House",
   date: today,
   videoUrl: "",
@@ -187,62 +197,49 @@ export default function LandingPage({
    *   activeAccessoryId → sessionStorage 순서로 사용
    */
 
-  let finalAccessoryId = NORMAL_ACCESSORY_ID;
+  let finalAccessoryId = 2; // 기본값: 오리지널 키링
 
   const backendStyling = soulTag.styling?.trim();
 
   if (backendStyling) {
-    // 백엔드 최종 결과가 있는 경우
+    // 1. 백엔드 최종 결과가 있는 경우
     const backendAccessory = accessories.find(
       (product) => product.name?.trim() === backendStyling,
     );
 
     if (backendAccessory) {
       finalAccessoryId = Number(backendAccessory.product_id);
-    } else if (backendStyling === BEAR_ACCESSORY_NAME) {
-      finalAccessoryId = BEAR_ACCESSORY_ID;
     } else {
-      finalAccessoryId = NORMAL_ACCESSORY_ID;
+      // 혹시 API products 배열은 없는데 이름만 온 경우 역추적
+      const matchedId = Object.keys(ACCESSORY_MAP).find(
+        (key) => ACCESSORY_MAP[key].name === backendStyling
+      );
+      finalAccessoryId = matchedId ? Number(matchedId) : 2;
     }
   } else {
-    // 로컬에서 바로 결과 화면으로 넘어온 경우에만 사용
+    // 2. 로컬에서 테스트/시연용으로 바로 넘어온 경우
     const activeId = Number(activeAccessoryId);
+    const storedId = Number(window.sessionStorage.getItem("aura_active_accessory_id"));
 
-    const storedId = Number(
-      window.sessionStorage.getItem("aura_active_accessory_id"),
-    );
-
-    if (activeId === NORMAL_ACCESSORY_ID || activeId === BEAR_ACCESSORY_ID) {
+    if (ACCESSORY_MAP[activeId]) {
       finalAccessoryId = activeId;
-    } else if (
-      storedId === NORMAL_ACCESSORY_ID ||
-      storedId === BEAR_ACCESSORY_ID
-    ) {
+    } else if (ACCESSORY_MAP[storedId]) {
       finalAccessoryId = storedId;
     }
   }
 
+  // 3. 최종 데이터 조합 (API 결과가 우선, 없으면 ACCESSORY_MAP 대체)
   const selectedAccessory =
-    accessories.find(
-      (product) => Number(product.product_id) === finalAccessoryId,
-    ) || {};
+    accessories.find((product) => Number(product.product_id) === finalAccessoryId) || {};
 
-  const isBearKeyring = finalAccessoryId === BEAR_ACCESSORY_ID;
+  const fallbackAcc = ACCESSORY_MAP[finalAccessoryId] || ACCESSORY_MAP[2];
 
-  const displayAccName =
-    selectedAccessory.name ||
-    (isBearKeyring ? BEAR_ACCESSORY_NAME : NORMAL_ACCESSORY_NAME);
-
-  const displayAccImage =
-    selectedAccessory.image_url ||
-    (isBearKeyring ? ACC_BEAR_URL : ACC_NORMAL_URL);
-
+  const displayAccName = selectedAccessory.name || fallbackAcc.name;
+  const displayAccImage = selectedAccessory.image_url || fallbackAcc.imgUrl;
   const displayBagImage = bag.image_url || BAG_IMG_URL;
 
   const finalProductId = selectedAccessory.product_id || finalAccessoryId;
-
-  const finalPurchaseUrl =
-    selectedAccessory.purchase_url || "https://kr.mcmworldwide.com/";
+  const finalPurchaseUrl = selectedAccessory.purchase_url || fallbackAcc.purchaseUrl;
 
   /*
    * =========================================================
