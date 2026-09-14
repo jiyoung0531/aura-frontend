@@ -45,7 +45,7 @@ const ACCESSORY_DATA = {
     attachRotation: [0, -Math.PI / 2, 0]
   },
   DACHSHUND: { 
-    id: 4, 
+    id: 30001, 
     modelUrl: "/models/key_ring.glb", 
     soundUrl: "/sounds/original_sound.mp3",
     scale: 3.3,
@@ -54,7 +54,7 @@ const ACCESSORY_DATA = {
     attachRotation: [0, -Math.PI / 9, 0]
   },
    RABBIT: { 
-    id: 5, 
+    id: 30002, 
     modelUrl: "/models/clasp_hook.glb", 
     soundUrl: "/sounds/teddy_sound.mp3",
     scale: 3.1, 
